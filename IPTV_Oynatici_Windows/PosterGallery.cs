@@ -23,9 +23,9 @@ internal sealed class PosterGallery : ScrollableControl
     internal Color Muted { get; set; } = Color.FromArgb(170, 190, 208);
     internal int SelectedIndex { get; private set; } = -1;
     internal int ScrollOffset { get => -AutoScrollPosition.Y; set => AutoScrollPosition = new Point(0, Math.Max(0, value)); }
-    private int CardWidth => Math.Clamp((ClientSize.Width - 74) / 4, (int)(135 * DeviceDpi / 96d), (int)(245 * DeviceDpi / 96d));
-    private int CardHeight => (int)(CardWidth * 1.5) + 65;
-    private int Columns => Math.Max(1, (ClientSize.Width - 2) / (CardWidth + 18));
+    private int CardWidth => Math.Clamp((ClientSize.Width - 74) / 4, (int)(135 * DeviceDpi / 96d), (int)(210 * DeviceDpi / 96d));
+    private int CardHeight => (int)(CardWidth * 1.38) + 55;
+    private int Columns => Math.Clamp((ClientSize.Width - 2) / (CardWidth + 18), 1, 4);
 
     internal PosterGallery()
     {
@@ -109,7 +109,7 @@ internal sealed class PosterGallery : ScrollableControl
         {
             var item = items[index];
             int x = 12 + (index % Columns) * (CardWidth + 18), y = 10 + (index / Columns) * CardHeight + AutoScrollPosition.Y;
-            var poster = new Rectangle(x, y, CardWidth, CardHeight - 65);
+            var poster = new Rectangle(x, y, CardWidth, CardHeight - 55);
             using var path = Rounded(poster, 10);
             using var gradient = new LinearGradientBrush(poster, Color.FromArgb(35, 78, 94),
                 item.Kind == "Film" ? Color.FromArgb(120, 69, 64) : Color.FromArgb(51, 56, 98), 45f);
@@ -117,7 +117,11 @@ internal sealed class PosterGallery : ScrollableControl
             Image? image = GetPoster(item.PosterUrl);
             if (image != null)
             {
-                var state = e.Graphics.Save(); e.Graphics.SetClip(path); e.Graphics.DrawImage(image, poster); e.Graphics.Restore(state);
+                var state = e.Graphics.Save(); e.Graphics.SetClip(path);
+                float zoom = Math.Max(poster.Width / (float)image.Width, poster.Height / (float)image.Height);
+                var target = new RectangleF(poster.X + (poster.Width - image.Width * zoom) / 2,
+                    poster.Y + (poster.Height - image.Height * zoom) / 2, image.Width * zoom, image.Height * zoom);
+                e.Graphics.DrawImage(image, target); e.Graphics.Restore(state);
             }
             else
             {

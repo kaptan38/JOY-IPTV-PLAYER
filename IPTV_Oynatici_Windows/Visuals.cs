@@ -133,11 +133,14 @@ internal sealed partial class PlayerForm
         kinds.SelectedItem = "Canlı TV"; Application.DoEvents(); ToggleFullscreen(); ToggleFullscreen(); Application.DoEvents();
         if (video.Left < left.Right) throw new InvalidOperationException("Kanal listesi video alanını örtüyor.");
         kinds.SelectedItem = "Film"; RefreshGroups(); list.SelectedIndex = 0;
-        MinimumSize = new Size(1400, 900); MaximumSize = new Size(1400, 900); Size = new Size(1400, 900);
         status.Text = "Tasarım önizlemesi • örnek içerik • yayın oynatılmıyor";
+        // Render the application controls at a fixed viewport independently of
+        // the hosted runner's small desktop working area.
+        cinemaRoot!.Dock = DockStyle.None;
+        cinemaRoot.Size = new Size(1400, 900); cinemaRoot.PerformLayout();
         Application.DoEvents();
-        using var bitmap = new Bitmap(Width, Height);
-        DrawToBitmap(bitmap, new Rectangle(0, 0, Width, Height));
+        using var bitmap = new Bitmap(cinemaRoot.Width, cinemaRoot.Height);
+        cinemaRoot.DrawToBitmap(bitmap, new Rectangle(0, 0, cinemaRoot.Width, cinemaRoot.Height));
         bitmap.Save(screenshotPath, ImageFormat.Png);
         Close();
     }

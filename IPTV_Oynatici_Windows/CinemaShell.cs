@@ -176,8 +176,8 @@ internal sealed partial class PlayerForm
 
     private Button RailButton(string text, EventHandler click)
     {
-        var button = Button(text, click); button.Width = 150; button.Height = 48; button.AutoSize = false;
-        button.TextAlign = ContentAlignment.MiddleLeft; button.Margin = new Padding(0, 0, 0, 9);
+        var button = Button(text, click); button.Width = 145; button.Height = 42; button.AutoSize = false;
+        button.TextAlign = ContentAlignment.MiddleLeft; button.Margin = new Padding(0, 0, 0, 6);
         button.FlatAppearance.BorderSize = 0; cinemaAllRail.Add(button); return button;
     }
     private static Button TransportButton(string text, EventHandler click)
