@@ -37,6 +37,7 @@ internal sealed partial class PlayerForm
         list.MouseLeave += (_, _) => { tooltipIndex = -1; libraryTip.Hide(list); };
         FormClosed += (_, _) => { libraryTip.Dispose(); cardTitleFont?.Dispose(); cardDetailFont?.Dispose(); };
         UpdateVisualSummary();
+        ApplyTheme();
     }
 
     private void ToggleListCards()
