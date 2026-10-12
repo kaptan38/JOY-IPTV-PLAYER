@@ -264,6 +264,7 @@ internal sealed partial class PlayerForm
 
     private bool HandlePlaybackKey(Keys key)
     {
+        if (cinemaGallery?.ContainsFocus == true) return false;
         if (ActiveControl is TextBox or ComboBox or TrackBar || playingChannel == null) return false;
         if (key == Keys.Space)
         { if (player.IsPlaying) player.Pause(); else player.Play(); return true; }

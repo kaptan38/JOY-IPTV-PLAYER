@@ -106,33 +106,33 @@ internal sealed partial class PlayerForm
     internal void VerifyVisualLayout(string screenshotPath)
     {
         channels.Clear();
-        channels.AddRange(new[]
-        {
-            new Channel("TRT 1 HD", "Ulusal", "", "Canlı TV"),
-            new Channel("Haber • Canlı", "Haber", "", "Canlı TV"),
-            new Channel("Spor Dünyası", "Spor", "", "Canlı TV"),
-            new Channel("Belgesel • Doğa ve Yaşam", "Belgesel", "", "Canlı TV"),
-            new Channel("Örnek Film (2026)", "Sinema", "", "Film"),
-            new Channel("Örnek Dizi", "Diziler", "", "Dizi")
-        });
+        foreach (string name in new[] { "Son Yolculuk", "Gece İstanbul", "Ufkun Ötesi", "Sessiz Şehir", "Mavi Rota", "Yeni Bir Gün", "Gölge", "Kuzey Işığı" })
+            channels.Add(new Channel(name, "Örnek Sinema", "", "Film", Description: "Tasarım önizlemesi için örnek içerik. Gerçek yayın veya film bilgisi değildir."));
+        channels.Add(new Channel("Örnek Dizi", "Diziler", "", "Dizi"));
+        channels.Add(new Channel("TRT 1 HD", "Ulusal", "", "Canlı TV"));
+        channels.Add(new Channel("Haber • Canlı", "Haber", "", "Canlı TV"));
         themeBox.SelectedIndex = 9;
-        RefreshGroups();
-        list.SelectedIndex = 0;
-        status.Text = "Tasarım önizlemesi • örnek içerik • yayın oynatılmıyor";
-        Width = 1280; Height = 800;
-        Show(); Application.DoEvents(); PerformLayout();
+        Width = 1400; Height = 900;
+        Show(); Application.DoEvents();
         foreach (string kind in new[] { "Canlı TV", "Film", "Dizi" })
         {
-            kinds.SelectedItem = kind; Application.DoEvents();
-            if (visible.Count == 0 || list.Height < 100 || list.Top < librarySummary.Bottom)
-                throw new InvalidOperationException("Kütüphane yerleşim kontrolü başarısız: " + kind);
-            using var row = new Bitmap(Math.Max(1, list.Width), list.ItemHeight);
-            using var graphics = Graphics.FromImage(row);
-            DrawLibraryItem(list, new DrawItemEventArgs(graphics, list.Font,
-                new Rectangle(0, 0, row.Width, row.Height), 0, DrawItemState.Selected));
+            kinds.SelectedItem = kind; RefreshGroups(); Application.DoEvents();
+            if (visible.Count == 0 || cinemaMainHost == null || cinemaMainHost.Width < 250 || cinemaMainHost.Height < 100)
+                throw new InvalidOperationException("Menü yerleşim kontrolü başarısız: " + kind);
+            if (kind != "Canlı TV" && (cinemaGallery == null || !cinemaGallery.Visible))
+                throw new InvalidOperationException("Afiş galerisi açılmadı: " + kind);
         }
-        kinds.SelectedItem = "Canlı TV"; list.SelectedIndex = 0;
-        video.Visible = false;
+        kinds.SelectedItem = "Film"; RefreshGroups();
+        filter.Text = "Son Yolculuk";
+        if (visible.Count != 1) throw new InvalidOperationException("Galeri arama kontrolü başarısız.");
+        filter.Clear();
+        ToggleFullscreen();
+        if (video.Parent != this || cinemaRoot!.Visible) throw new InvalidOperationException("Tam ekran kontrolü başarısız.");
+        ToggleFullscreen();
+        if (video.Parent != cinemaVideoHost || !cinemaRoot!.Visible) throw new InvalidOperationException("Tam ekran dönüş kontrolü başarısız.");
+        kinds.SelectedItem = "Film"; RefreshGroups(); list.SelectedIndex = 0;
+        status.Text = "Tasarım önizlemesi • örnek içerik • yayın oynatılmıyor";
+        Application.DoEvents();
         using var bitmap = new Bitmap(Width, Height);
         DrawToBitmap(bitmap, new Rectangle(0, 0, Width, Height));
         bitmap.Save(screenshotPath, ImageFormat.Png);

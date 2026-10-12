@@ -9,7 +9,7 @@ using LibVLCSharp.WinForms;
 namespace JoyIptv;
 
 internal sealed record Channel(string Name, string Group, string Url, string Kind = "Canlı TV", string? Command = null,
-    int BouquetOrder = 0, int ChannelOrder = 0, string EpgId = "");
+    int BouquetOrder = 0, int ChannelOrder = 0, string EpgId = "", string PosterUrl = "", string Description = "");
 
 internal static class Program
 {
@@ -164,6 +164,7 @@ internal sealed partial class PlayerForm : Form
         SetupSettings(top);
         SetupNavigation();
         SetupVisuals();
+        SetupCinemaShell();
         Shown += async (_, _) => await RestoreLastSourceAsync();
         FormClosing += (_, _) => { SavePlaybackPosition(); Application.RemoveMessageFilter(fullscreenKeys);
             CancelSubtitleJob(); scheduleTimer.Stop(); scheduleTimer.Dispose(); StopAllRecordings(); playbackTimer.Stop(); player.Stop(); player.Dispose(); libvlc.Dispose(); http.Dispose(); epgHttp.Dispose(); stalkerRequestGate.Dispose(); };
@@ -210,6 +211,7 @@ internal sealed partial class PlayerForm : Form
             activeSource = source.SelectedIndex;
             offlineCache = false;
             libraryPositions.Clear();
+            cinemaScroll.Clear();
             channels.Clear(); channels.AddRange(loaded); OnChannelsLoaded(); RefreshGroups();
             if (loaded.Count > 0) SaveChannelCache(loaded);
             status.Text = $"{channels.Count} öğe yüklendi. Oynatmak için çift tıklayın." +
@@ -228,6 +230,7 @@ internal sealed partial class PlayerForm : Form
                 activeSource = source.SelectedIndex;
                 offlineCache = true;
                 libraryPositions.Clear();
+                cinemaScroll.Clear();
                 channels.Clear(); channels.AddRange(cached); OnChannelsLoaded(); RefreshGroups();
                 status.Text = $"Çevrimdışı önbellek: {cached.Count} öğe ({cachedAt:g}). Yayın için ağ gerekir.";
             }
@@ -316,7 +319,7 @@ internal sealed partial class PlayerForm : Form
     private sealed class M3uAccumulator
     {
         public List<Channel> Items { get; } = new();
-        private string name = "Yayın", group = "Genel", epgId = "";
+        private string name = "Yayın", group = "Genel", epgId = "", logo = "";
 
         public void AddLine(string line, Uri? baseUri)
         {
@@ -327,16 +330,19 @@ internal sealed partial class PlayerForm : Form
                 group = groupMatch.Success ? groupMatch.Groups[1].Value : "Genel";
                 var idMatch = Regex.Match(item, "tvg-id=\"([^\"]*)\"", RegexOptions.IgnoreCase);
                 epgId = idMatch.Success ? idMatch.Groups[1].Value : "";
+                var logoMatch = Regex.Match(item, "tvg-logo=\"([^\"]*)\"", RegexOptions.IgnoreCase);
+                logo = logoMatch.Success ? logoMatch.Groups[1].Value : "";
+                if (logo.Length > 0 && baseUri != null && Uri.TryCreate(baseUri, logo, out var logoUri)) logo = logoUri.ToString();
                 int comma = item.LastIndexOf(','); name = comma >= 0 ? item[(comma + 1)..].Trim() : "Yayın";
             }
             else if (item.Length > 0 && !item.StartsWith('#'))
             {
                 if (Uri.TryCreate(item, UriKind.Absolute, out var absolute) && (absolute.Scheme == "http" || absolute.Scheme == "https"))
-                    Items.Add(new Channel(name, group, absolute.ToString(), KindFromGroup(group), EpgId: epgId));
+                    Items.Add(new Channel(name, group, absolute.ToString(), KindFromGroup(group), EpgId: epgId, PosterUrl: logo));
                 else if (baseUri != null && Uri.TryCreate(baseUri, item, out var relative) &&
                     (relative.Scheme == "http" || relative.Scheme == "https"))
-                    Items.Add(new Channel(name, group, relative.ToString(), KindFromGroup(group), EpgId: epgId));
-                name = "Yayın"; group = "Genel"; epgId = "";
+                    Items.Add(new Channel(name, group, relative.ToString(), KindFromGroup(group), EpgId: epgId, PosterUrl: logo));
+                name = "Yayın"; group = "Genel"; epgId = ""; logo = "";
             }
         }
     }
@@ -394,7 +400,7 @@ internal sealed partial class PlayerForm : Form
                     section.Add(new Channel(Str(row, "name"), categories.TryGetValue(groupId, out var groupName) ? groupName : groupId, url, kind,
                         route == "series" || route == "live" ? id : null,
                         categoryPositions.TryGetValue(groupId, out int groupPosition) ? groupPosition : int.MaxValue, number,
-                        Str(row, "epg_channel_id")));
+                        Str(row, "epg_channel_id"), CatalogImage(row, server), Str(row, "plot")));
                 }
                 result.AddRange(section.OrderBy(c => c.BouquetOrder).ThenBy(c => c.ChannelOrder > 0 ? c.ChannelOrder : int.MaxValue));
             }
@@ -463,7 +469,7 @@ internal sealed partial class PlayerForm : Form
                 result.Add(new Channel(Str(row, "name"), genres.TryGetValue(groupId, out var groupName) ? groupName : groupId,
                     "", "Canlı TV", Str(row, "cmd"),
                     genrePositions.TryGetValue(groupId, out int groupPosition) ? groupPosition : int.MaxValue, number,
-                    Str(row, "id")));
+                    Str(row, "id"), CatalogImage(row, stalkerBase)));
             }
         return result.OrderBy(c => c.Kind == "Canlı TV" ? 0 : c.Kind == "Film" ? 1 : 2)
             .ThenBy(c => c.BouquetOrder).ThenBy(c => c.ChannelOrder > 0 ? c.ChannelOrder : int.MaxValue).ToList();
@@ -580,6 +586,7 @@ internal sealed partial class PlayerForm : Form
         }
         finally { list.EndUpdate(); }
         UpdateVisualSummary();
+        RefreshCinemaCatalog();
     }
 
     private void RefreshGroups()
@@ -748,6 +755,7 @@ internal sealed partial class PlayerForm : Form
             ApplyPictureProfile();
             playingChannel = item; currentStreamUrl = url; PrepareResume(item); StartWatchSession();
             list.Invalidate();
+            ShowCinemaPlayback();
             status.Text = "Oynatılıyor: " + item.Name;
         }
         catch (Exception e)
@@ -787,6 +795,7 @@ internal sealed partial class PlayerForm : Form
 
     private void ToggleFullscreen()
     {
+        if (cinemaRoot != null) { ToggleCinemaFullscreen(); return; }
         fullscreen = !fullscreen;
         if (fullscreen)
         {

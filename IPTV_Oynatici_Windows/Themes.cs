@@ -135,9 +135,11 @@ internal sealed partial class PlayerForm
         BackColor = page; ForeColor = ink;
         detailColor = muted;
         StyleChildren(this, panel, input, ink, muted, accent);
+        if (cinemaRoot != null) StyleChildren(top, panel, input, ink, muted, accent);
         ApplyMenuColors();
         video.BackColor = Color.Black;
         list.Invalidate();
+        ApplyCinemaTheme();
         try { Directory.CreateDirectory(settingsDir); File.WriteAllText(ThemeFile, index.ToString()); }
         catch { /* Theme remains active for this session. */ }
     }

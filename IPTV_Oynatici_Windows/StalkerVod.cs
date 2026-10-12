@@ -78,7 +78,7 @@ internal sealed partial class PlayerForm
                         }
                         output.Add(new Channel(name, !string.IsNullOrEmpty(category.Name) ? category.Name : "Genel",
                             directUrl, itemKind, command.Length > 0 ? command : null,
-                            category.Position, output.Count + 1));
+                            category.Position, output.Count + 1, PosterUrl: CatalogImage(row, stalkerBase), Description: Str(row, "description")));
                         added++;
                     }
                     if (added == 0) break;

@@ -15,6 +15,7 @@ internal sealed partial class PlayerForm
         string nextKind = kinds.SelectedItem as string ?? "Canlı TV";
         if (nextKind != currentLibraryKind)
         {
+            if (cinemaGallery != null) cinemaScroll[currentLibraryKind] = cinemaGallery.ScrollOffset;
             libraryPositions[currentLibraryKind] =
                 (groups.SelectedItem as string ?? "Tümü",
                  list.SelectedIndex >= 0 && list.SelectedIndex < visible.Count ? visible[list.SelectedIndex] : null,
@@ -30,6 +31,7 @@ internal sealed partial class PlayerForm
             if (list.Items.Count > 0) list.TopIndex = Math.Clamp(position.Top, 0, list.Items.Count - 1);
         }
         UpdateLibrarySelection();
+        if (cinemaGallery != null) cinemaGallery.ScrollOffset = cinemaScroll.GetValueOrDefault(nextKind);
     }
 
     private void UpdateLibraryCounts()
@@ -186,6 +188,7 @@ internal sealed partial class PlayerForm
         StopLiveRecovery();
         player.Stop();
         status.Text = "Durduruldu.";
+        cinemaPlayingView = false; UpdateCinemaMode();
     }
 
     private void OpenImdbSearch()
