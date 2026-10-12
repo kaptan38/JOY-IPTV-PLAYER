@@ -14,16 +14,27 @@ internal sealed record Channel(string Name, string Group, string Url, string Kin
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         try
         {
+            Core.Initialize(NativeRuntime.EnsureReady());
+            if (args.Contains("--verify-native", StringComparer.Ordinal))
+            {
+                using var probe = new LibVLC("--no-video-title-show");
+                return;
+            }
             ApplicationConfiguration.Initialize();
-            Core.Initialize(Path.Combine(AppContext.BaseDirectory, "libvlc", "win-x64"));
             Application.Run(new PlayerForm());
         }
         catch (Exception ex)
         {
+            if (args.Contains("--verify-native", StringComparer.Ordinal))
+            {
+                Console.Error.WriteLine(ex);
+                Environment.ExitCode = 1;
+                return;
+            }
             var log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "JOY_IPTV_acilis_hatasi.txt");
             try { File.WriteAllText(log, ex.ToString()); }
             catch { log = "Masaüstüne hata kaydı yazılamadı"; }
