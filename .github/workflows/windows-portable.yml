@@ -1,0 +1,55 @@
+name: JOY IPTV - Kurulumsuz Windows paketi
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'IPTV_Oynatici_Windows/**'
+      - '.github/workflows/windows-portable.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Windows EXE ve VLC dosyalarini hazirla
+        shell: pwsh
+        run: ./IPTV_Oynatici_Windows/Derle.ps1
+      - name: Paketi kontrol et
+        shell: pwsh
+        run: |
+          $output = 'IPTV_Oynatici_Windows/yayin'
+          $required = @('JOY_IPTV_Player.exe', 'libvlc/win-x64/libvlc.dll', 'libvlc/win-x64/libvlccore.dll')
+          foreach ($relative in $required) {
+            $path = Join-Path $output $relative
+            if (-not (Test-Path $path)) { throw "Eksik dosya: $relative" }
+            $bytes = [IO.File]::ReadAllBytes((Resolve-Path $path))
+            if ($bytes.Length -lt 2 -or $bytes[0] -ne 77 -or $bytes[1] -ne 90) {
+              throw "Gecersiz Windows dosyasi: $relative"
+            }
+          }
+          if (-not (Get-ChildItem "$output/libvlc/win-x64/plugins" -Filter '*.dll' -Recurse -ErrorAction SilentlyContinue)) {
+            throw 'VLC oynatma eklentileri bulunamadi.'
+          }
+          @'
+          JOY IPTV Player - Windows 10/11 x64
+          ZIP'i tamamen bir klasore cikarin ve JOY_IPTV_Player.exe dosyasini acin.
+          Kurulum veya .NET SDK kurulumu gerekmez.
+          libvlc klasorunu EXE'nin yaninda tutun.
+          Bu paket derleme ve dosya kontrollerinden gecmistir; yayinlarinizla oynatmayi test edin.
+          '@ | Set-Content "$output/BENI_OKU.txt" -Encoding utf8
+      - name: Kurulumsuz paketi yukle
+        uses: actions/upload-artifact@v4
+        with:
+          name: JOY_IPTV_Player_Windows_Portable
+          path: IPTV_Oynatici_Windows/yayin/
+          if-no-files-found: error
+          retention-days: 14

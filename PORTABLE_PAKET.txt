@@ -1,0 +1,13 @@
+JOY IPTV - Windows kurulumsuz paket hazirligi
+
+Bu ZIP kaynak kod ve GitHub Windows derleme gorevi icerir; hazir EXE degildir.
+Dosyalar depoya kok klasor yapisi korunarak aktarilmalidir.
+.github/workflows/windows-portable.yml dosyasi gizli klasor icindedir.
+GitHub Actions'ta "JOY IPTV - Kurulumsuz Windows paketi" gorevi calisir.
+Basarili calismadan sonra JOY_IPTV_Player_Windows_Portable artifact'i indirilir.
+Artifact EXE, .NET calisma zamani ve VLC oynatma dosyalarini birlikte icerir.
+Kullanici ZIP'i cikarip EXE'yi acabilir; kendi bilgisayarinda derleme yapmaz.
+
+Gorsel oneriler: afisli film/dizi kartlari, kanal logolari, turkuaz secili satir,
+slate/petrol zemin, okunur golgesiz yazi, kompakt oynatma cubugu, ikinci bilgi paneli.
+Bu oneriler bu pakette yeni arayuz olarak uygulanmamistir.
