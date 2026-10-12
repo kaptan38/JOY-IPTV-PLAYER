@@ -11,6 +11,8 @@ internal sealed partial class PlayerForm
     private PosterGallery? cinemaGallery;
     private FlowLayoutPanel? cinemaDetails;
     private readonly Dictionary<string, Button> cinemaRail = new();
+    private readonly List<Button> cinemaAllRail = new();
+    private readonly ContextMenuStrip cinemaToolsMenu = new();
     private readonly Label cinemaTitle = new() { AutoSize = true, Font = new Font("Segoe UI", 18, FontStyle.Bold) };
     private readonly Label cinemaPlayingTitle = new() { Dock = DockStyle.Fill, AutoEllipsis = true,
         TextAlign = ContentAlignment.MiddleLeft, Text = "JOY IPTV • Hazır" };
@@ -73,6 +75,8 @@ internal sealed partial class PlayerForm
         railItems.Controls.Add(RailButton("♡  Favoriler", (_, _) =>
         { cinemaPlayingView = false; kinds.SelectedItem = "Tümü"; favoritesOnly.Checked = true; UpdateCinemaMode(); }));
         railItems.Controls.Add(RailButton("◉  Kayıtlar", (_, _) => ShowRecordingManager()));
+        railItems.Controls.Add(RailButton("⋯  Araçlar", (sender, _) =>
+        { if (sender is Control control) cinemaToolsMenu.Show(control, new Point(control.Width, 0)); }));
         rail.Controls.Add(railItems, 0, 1);
         var lower = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         lower.Controls.Add(RailButton("▣  Kaynaklar", (_, _) => ShowCinemaSources()));
@@ -84,7 +88,7 @@ internal sealed partial class PlayerForm
             Padding = new Padding(16, 14, 12, 6), Margin = Padding.Empty };
         content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         content.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
-        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
@@ -94,19 +98,20 @@ internal sealed partial class PlayerForm
         filter.Dock = DockStyle.Fill; filter.Margin = new Padding(8, 10, 8, 14); header.Controls.Add(filter, 1, 0);
         savedSourceBox.Dock = DockStyle.Fill; savedSourceBox.Margin = new Padding(6, 10, 2, 14); header.Controls.Add(savedSourceBox, 2, 0);
         content.Controls.Add(header, 0, 0);
-        var filters = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2 };
+        var filters = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
         filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 270));
         filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
         filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        filters.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
         filters.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         groups.Dock = DockStyle.Fill; filters.Controls.Add(groups, 0, 0);
         favoritesOnly.Dock = DockStyle.Fill; filters.Controls.Add(favoritesOnly, 1, 0);
         librarySummary.Dock = DockStyle.Fill; filters.Controls.Add(librarySummary, 2, 0);
         if (navigation != null)
         {
-            navigation.Dock = DockStyle.Fill; navigation.Width = 800;
-            filters.Controls.Add(navigation, 0, 1); filters.SetColumnSpan(navigation, 3);
+            navigation.Parent?.Controls.Remove(navigation);
+            foreach (ToolStripMenuItem section in navigation.Items.Cast<ToolStripMenuItem>().ToArray())
+            { section.Alignment = ToolStripItemAlignment.Left; cinemaToolsMenu.Items.Add(section); }
+            MainMenuStrip = null;
         }
         content.Controls.Add(filters, 0, 1);
         var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
@@ -163,17 +168,17 @@ internal sealed partial class PlayerForm
         list.SelectedIndexChanged += (_, _) =>
         { cinemaGallery.SelectItem(list.SelectedIndex); RefreshCinemaDetails(); };
         kinds.SelectedIndexChanged += (_, _) => { cinemaPlayingView = false; UpdateCinemaMode(); };
-        FormClosed += (_, _) => { cinemaPoster.Image?.Dispose(); top.Dispose(); };
+        FormClosed += (_, _) => { cinemaPoster.Image?.Dispose(); cinemaToolsMenu.Dispose(); top.Dispose(); };
         ResumeLayout(); ApplyTheme();
         if (channels.Count == 0) kinds.SelectedItem = "Tümü";
         RefreshCinemaCatalog();
     }
 
-    private static Button RailButton(string text, EventHandler click)
+    private Button RailButton(string text, EventHandler click)
     {
         var button = Button(text, click); button.Width = 150; button.Height = 48; button.AutoSize = false;
         button.TextAlign = ContentAlignment.MiddleLeft; button.Margin = new Padding(0, 0, 0, 9);
-        button.FlatAppearance.BorderSize = 0; return button;
+        button.FlatAppearance.BorderSize = 0; cinemaAllRail.Add(button); return button;
     }
     private static Button TransportButton(string text, EventHandler click)
     { var button = Button(text, click); button.AutoSize = false; button.Width = 44; button.Height = 42; return button; }
@@ -255,6 +260,14 @@ internal sealed partial class PlayerForm
         cinemaGallery.BackColor = BackColor; cinemaGallery.ForeColor = ForeColor;
         cinemaGallery.Muted = detailColor; cinemaGallery.Accent = selectionColor; cinemaGallery.Invalidate();
         cinemaItemPlot.ForeColor = detailColor; cinemaItemMeta.ForeColor = detailColor;
+        foreach (var button in cinemaAllRail) { button.BackColor = top.BackColor; button.ForeColor = ForeColor; }
+        cinemaToolsMenu.BackColor = top.BackColor; cinemaToolsMenu.ForeColor = ForeColor;
+        cinemaToolsMenu.Renderer = new ToolStripProfessionalRenderer(new NavigationColors(top.BackColor, ForeColor));
+        foreach (ToolStripMenuItem section in cinemaToolsMenu.Items)
+        {
+            section.ForeColor = ForeColor; section.DropDown.BackColor = top.BackColor;
+            foreach (ToolStripItem action in section.DropDownItems) action.ForeColor = ForeColor;
+        }
         UpdateCinemaMode();
     }
 
@@ -280,7 +293,7 @@ internal sealed partial class PlayerForm
         else
         {
             Controls.Remove(video); cinemaVideoHost.Controls.Add(video); video.Dock = DockStyle.Fill;
-            video.SendToBack();
+            video.BringToFront();
             WindowState = FormWindowState.Normal; FormBorderStyle = FormBorderStyle.Sizable; WindowState = previousWindowState;
             cinemaRoot.Show(); status.Show(); UpdateCinemaMode();
         }

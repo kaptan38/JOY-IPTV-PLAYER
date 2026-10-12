@@ -23,9 +23,9 @@ internal sealed class PosterGallery : ScrollableControl
     internal Color Muted { get; set; } = Color.FromArgb(170, 190, 208);
     internal int SelectedIndex { get; private set; } = -1;
     internal int ScrollOffset { get => -AutoScrollPosition.Y; set => AutoScrollPosition = new Point(0, Math.Max(0, value)); }
-    private int CardWidth => Math.Max(130, (int)(164 * DeviceDpi / 96d));
-    private int CardHeight => (int)(286 * DeviceDpi / 96d);
-    private int Columns => Math.Max(1, (ClientSize.Width - 20) / (CardWidth + 18));
+    private int CardWidth => Math.Clamp((ClientSize.Width - 74) / 4, (int)(135 * DeviceDpi / 96d), (int)(245 * DeviceDpi / 96d));
+    private int CardHeight => (int)(CardWidth * 1.5) + 65;
+    private int Columns => Math.Max(1, (ClientSize.Width - 2) / (CardWidth + 18));
 
     internal PosterGallery()
     {

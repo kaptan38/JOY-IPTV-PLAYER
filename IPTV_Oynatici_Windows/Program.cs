@@ -568,6 +568,7 @@ internal sealed partial class PlayerForm : Form
 
     private void ApplyFilter()
     {
+        Channel? previousSelection = list.SelectedIndex >= 0 && list.SelectedIndex < visible.Count ? visible[list.SelectedIndex] : null;
         string q = filter.Text.Trim();
         string group = groups.SelectedItem as string ?? "Tümü";
         string kind = kinds.SelectedItem as string ?? "Canlı TV";
@@ -585,6 +586,11 @@ internal sealed partial class PlayerForm : Form
                 $"{(favorites.Count > 0 && favorites.Contains(FavoriteKey(c)) ? "★ " : "")}{c.Name}{EpgLabel(c)}").ToArray());
         }
         finally { list.EndUpdate(); }
+        if (previousSelection != null)
+        {
+            int index = visible.IndexOf(previousSelection);
+            if (index >= 0) list.SelectedIndex = index;
+        }
         UpdateVisualSummary();
         RefreshCinemaCatalog();
     }

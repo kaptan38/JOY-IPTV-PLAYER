@@ -130,7 +130,10 @@ internal sealed partial class PlayerForm
         if (video.Parent != this || cinemaRoot!.Visible) throw new InvalidOperationException("Tam ekran kontrolü başarısız.");
         ToggleFullscreen();
         if (video.Parent != cinemaVideoHost || !cinemaRoot!.Visible) throw new InvalidOperationException("Tam ekran dönüş kontrolü başarısız.");
+        kinds.SelectedItem = "Canlı TV"; Application.DoEvents(); ToggleFullscreen(); ToggleFullscreen(); Application.DoEvents();
+        if (video.Left < left.Right) throw new InvalidOperationException("Kanal listesi video alanını örtüyor.");
         kinds.SelectedItem = "Film"; RefreshGroups(); list.SelectedIndex = 0;
+        MinimumSize = new Size(1400, 900); MaximumSize = new Size(1400, 900); Size = new Size(1400, 900);
         status.Text = "Tasarım önizlemesi • örnek içerik • yayın oynatılmıyor";
         Application.DoEvents();
         using var bitmap = new Bitmap(Width, Height);
