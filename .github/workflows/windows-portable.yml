@@ -33,10 +33,27 @@ jobs:
           $test = Start-Process -FilePath $exe -ArgumentList '--verify-native' -PassThru
           if (-not $test.WaitForExit(120000)) { $test.Kill(); throw 'Onbellekli VLC testi zaman asimi.' }
           if ($test.ExitCode -ne 0) { throw 'Onbellekli VLC motor testi basarisiz.' }
+      - name: Kart gorunumunu ve liste yerlesimini test et
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path 'IPTV_Oynatici_Windows/yayin/JOY_IPTV_Player.exe'
+          $image = Join-Path $env:GITHUB_WORKSPACE 'JOY_IPTV_Menu_Onizleme.png'
+          $log = Join-Path $env:GITHUB_WORKSPACE 'ui-test-errors.txt'
+          $test = Start-Process -FilePath $exe -ArgumentList @('--verify-ui', $image) -RedirectStandardError $log -PassThru
+          if (-not $test.WaitForExit(120000)) { $test.Kill(); throw 'Arayuz testi zaman asimi.' }
+          if ($test.ExitCode -ne 0) { Get-Content $log; throw 'Arayuz testi basarisiz.' }
+          if (-not (Test-Path $image)) { throw 'Arayuz onizlemesi olusmadi.' }
       - name: Tek EXE paketini yukle
         uses: actions/upload-artifact@v4
         with:
           name: JOY_IPTV_Player_Tek_EXE
           path: IPTV_Oynatici_Windows/yayin/JOY_IPTV_Player.exe
+          if-no-files-found: error
+          retention-days: 14
+      - name: Gercek arayuz onizlemesini yukle
+        uses: actions/upload-artifact@v4
+        with:
+          name: JOY_IPTV_Menu_Onizleme
+          path: JOY_IPTV_Menu_Onizleme.png
           if-no-files-found: error
           retention-days: 14

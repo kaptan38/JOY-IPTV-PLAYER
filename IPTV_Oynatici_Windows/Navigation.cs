@@ -47,7 +47,7 @@ internal sealed partial class PlayerForm
         {
             bool selected = string.Equals(kinds.SelectedItem?.ToString(), kind, StringComparison.Ordinal);
             button.FlatAppearance.BorderSize = selected ? 2 : 0;
-            button.FlatAppearance.BorderColor = Color.White;
+            button.FlatAppearance.BorderColor = selectionColor;
             button.AccessibleName = $"{kind}, {(selected ? "seçili" : "seçili değil")}";
         }
     }
@@ -94,6 +94,7 @@ internal sealed partial class PlayerForm
         Add(recording, "Altyazı dosyası ekle", (_, _) => ImportSubtitle());
         Add(recording, "AI altyazı oluştur (10 dk)", async (_, _) => await GenerateSubtitleAsync());
         Add(tools, "Görüntü bilgisi", (_, _) => ShowVideoInfo());
+        Add(tools, "Kart / kompakt liste görünümü", (_, _) => ToggleListCards());
         Add(tools, "Akıllı yardımcı ve öneriler", (_, _) => ShowSmartAssistant());
         Add(tools, "IMDb'de film/dizi ara", (_, _) => OpenImdbSearch());
         Add(tools, "Bağlantı tanıla", async (_, _) => await DiagnoseAsync());
@@ -145,16 +146,18 @@ internal sealed partial class PlayerForm
         // the list's first items on some display scaling settings.
         var libraryLayout = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
+            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
             Padding = Padding.Empty, Margin = Padding.Empty
         };
         libraryLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         libraryLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 218));
+        libraryLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         libraryLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         list.Dock = DockStyle.Fill;
         list.Margin = Padding.Empty;
         libraryLayout.Controls.Add(libraryHeader, 0, 0);
-        libraryLayout.Controls.Add(list, 0, 1);
+        libraryLayout.Controls.Add(librarySummary, 0, 1);
+        libraryLayout.Controls.Add(list, 0, 2);
         left.Controls.Add(libraryLayout);
         left.ResumeLayout();
         UpdateLibraryCounts();

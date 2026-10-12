@@ -25,11 +25,17 @@ internal static class Program
                 return;
             }
             ApplicationConfiguration.Initialize();
+            if (args.Length == 2 && args[0] == "--verify-ui")
+            {
+                using var preview = new PlayerForm();
+                preview.VerifyVisualLayout(args[1]);
+                return;
+            }
             Application.Run(new PlayerForm());
         }
         catch (Exception ex)
         {
-            if (args.Contains("--verify-native", StringComparer.Ordinal))
+            if (args.Contains("--verify-native", StringComparer.Ordinal) || args.Contains("--verify-ui", StringComparer.Ordinal))
             {
                 Console.Error.WriteLine(ex);
                 Environment.ExitCode = 1;
@@ -157,6 +163,7 @@ internal sealed partial class PlayerForm : Form
         SetupThemes(top);
         SetupSettings(top);
         SetupNavigation();
+        SetupVisuals();
         Shown += async (_, _) => await RestoreLastSourceAsync();
         FormClosing += (_, _) => { SavePlaybackPosition(); Application.RemoveMessageFilter(fullscreenKeys);
             CancelSubtitleJob(); scheduleTimer.Stop(); scheduleTimer.Dispose(); StopAllRecordings(); playbackTimer.Stop(); player.Stop(); player.Dispose(); libvlc.Dispose(); http.Dispose(); epgHttp.Dispose(); stalkerRequestGate.Dispose(); };
@@ -572,6 +579,7 @@ internal sealed partial class PlayerForm : Form
                 $"{(favorites.Count > 0 && favorites.Contains(FavoriteKey(c)) ? "★ " : "")}{c.Name}{EpgLabel(c)}").ToArray());
         }
         finally { list.EndUpdate(); }
+        UpdateVisualSummary();
     }
 
     private void RefreshGroups()
@@ -739,6 +747,7 @@ internal sealed partial class PlayerForm : Form
             if (!player.Play(media)) throw new InvalidOperationException("VLC oynatmayı başlatamadı.");
             ApplyPictureProfile();
             playingChannel = item; currentStreamUrl = url; PrepareResume(item); StartWatchSession();
+            list.Invalidate();
             status.Text = "Oynatılıyor: " + item.Name;
         }
         catch (Exception e)

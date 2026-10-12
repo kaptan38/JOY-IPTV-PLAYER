@@ -10,11 +10,12 @@ internal sealed partial class PlayerForm
     private void SetupThemes(FlowLayoutPanel toolbar)
     {
         themeBox.Items.AddRange(new object[] { "Gece Antrasit", "Okyanus", "Açık", "Gece Moru",
-            "Orman", "Gün Batımı", "Kömür Altın", "Gece Petrol", "Fildişi" });
+            "Orman", "Gün Batımı", "Kömür Altın", "Gece Petrol", "Fildişi",
+            "Slate Şeftali", "Slate Buz", "Slate Zümrüt" });
         toolbar.Controls.Add(themeBox);
         toolbar.Controls.Add(Button("Görüntü bilgisi", (_, _) => ShowVideoInfo()));
         themeBox.SelectedIndexChanged += (_, _) => ApplyTheme();
-        int selected = 0;
+        int selected = 9;
         try
         {
             if (File.Exists(ThemeFile)) selected = Math.Clamp(Int32.Parse(File.ReadAllText(ThemeFile)), 0, themeBox.Items.Count - 1);
@@ -69,7 +70,15 @@ internal sealed partial class PlayerForm
     {
         int index = Math.Max(0, themeBox.SelectedIndex);
         Color page, panel, input, ink, muted, accent;
-        if (index == 2)
+        if (index is 9 or 10 or 11)
+        {
+            page = Color.FromArgb(22, 29, 40); panel = Color.FromArgb(30, 40, 54);
+            input = Color.FromArgb(38, 50, 66); ink = Color.FromArgb(238, 242, 247);
+            muted = Color.FromArgb(180, 196, 211);
+            accent = index == 9 ? Color.FromArgb(159, 85, 66) : index == 10
+                ? Color.FromArgb(50, 108, 153) : Color.FromArgb(32, 112, 98);
+        }
+        else if (index == 2)
         {
             page = Color.FromArgb(238, 243, 249); panel = Color.White;
             input = Color.FromArgb(246, 248, 251); ink = Color.FromArgb(20, 31, 45);
@@ -124,9 +133,11 @@ internal sealed partial class PlayerForm
             muted = Color.FromArgb(205, 215, 229); accent = Color.FromArgb(90, 114, 198);
         }
         BackColor = page; ForeColor = ink;
+        detailColor = muted;
         StyleChildren(this, panel, input, ink, muted, accent);
         ApplyMenuColors();
         video.BackColor = Color.Black;
+        list.Invalidate();
         try { Directory.CreateDirectory(settingsDir); File.WriteAllText(ThemeFile, index.ToString()); }
         catch { /* Theme remains active for this session. */ }
     }
