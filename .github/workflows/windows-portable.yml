@@ -2,9 +2,10 @@ name: JOY IPTV - Tek EXE
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [main, master, source-ui-fix]
     paths:
       - 'IPTV_Oynatici_Windows/**'
+      - 'Tests/**'
       - '.github/workflows/windows-portable.yml'
 permissions:
   contents: read
@@ -17,6 +18,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Kaynak yukleme regresyon testi
+        shell: pwsh
+        run: |
+          dotnet restore Tests/SourceRegression.csproj
+          if ($LASTEXITCODE -ne 0) { throw 'Test restore failed.' }
+          $cache = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $env:USERPROFILE '.nuget\packages' }
+          $native = Get-ChildItem (Join-Path $cache 'videolan.libvlc.windows\3.0.21') -Recurse -Filter libvlc.dll |
+            Where-Object { $_.FullName -match 'win-x64|x64' } | Select-Object -First 1
+          dotnet run --project Tests/SourceRegression.csproj -c Release -- $native.DirectoryName
+          if ($LASTEXITCODE -ne 0) { throw 'Source regression test failed.' }
       - name: VLC motorunu EXE icine gom
         shell: pwsh
         run: ./IPTV_Oynatici_Windows/Derle.ps1
@@ -57,3 +68,4 @@ jobs:
           path: JOY_IPTV_Menu_Onizleme.png
           if-no-files-found: error
           retention-days: 14
+
