@@ -315,6 +315,10 @@ internal sealed partial class PlayerForm
         bool empty = visible.Count == 0 && !cinemaPlayingView;
         cinemaEmpty.Visible = empty;
         if (!empty) return;
+        // Keep only the welcome panel visible; container bitmap rendering and
+        // native sibling windows otherwise paint the empty gallery over it.
+        if (cinemaGallery != null) cinemaGallery.Visible = false;
+        if (cinemaVideoHost != null) cinemaVideoHost.Visible = false;
         cinemaEmptyTitle.Text = loadingSource ? "Kütüphane hazırlanıyor" : channels.Count == 0
             ? "JOY'a hoş geldin" : "Eşleşen içerik bulunamadı";
         cinemaEmptyText.Text = loadingSource ? status.Text : channels.Count == 0
