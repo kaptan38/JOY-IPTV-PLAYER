@@ -136,7 +136,7 @@ internal static class SourceRegression
             sourceWindow.Close();
             while (!loading.IsCompleted && DateTime.UtcNow < waitUntil) { Application.DoEvents(); Thread.Sleep(2); }
             Check(loading.IsCompleted, "FAIL: Closing source window did not cancel the blocked download.");
-            loading.GetAwaiter().GetResult(); slowContext.Response.Close();
+            loading.GetAwaiter().GetResult(); slowContext.Response.Abort();
             Check(sourceWindow.IsDisposed && !address.IsDisposed, "FAIL: Cancellation did not release source window safely.");
             Console.WriteLine("PASS: Closing source window cancels an ongoing stalled HTTP download.");
             return 0;
