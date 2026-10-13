@@ -183,6 +183,7 @@ internal sealed partial class PlayerForm : Form
         username.Visible = login; password.Visible = source.SelectedIndex == 2;
         username.PlaceholderText = source.SelectedIndex == 3 ? "MAC (00:1A:79:...)" : "Kullanıcı";
         address.PlaceholderText = source.SelectedIndex == 0 ? "M3U dosya yolu" : "http(s):// adres";
+        UpdateSourceDialogFields();
     }
 
     private void PickFile()
@@ -198,6 +199,8 @@ internal sealed partial class PlayerForm : Form
         int catalogGeneration = ++stalkerCatalogGeneration;
         try
         {
+            NormalizeSourceInput();
+            SetCinemaLoading(true);
             status.Text = "Kaynak yükleniyor..."; UseWaitCursor = true;
             currentStarted = ""; currentExpires = "";
             List<Channel> loaded = source.SelectedIndex switch
@@ -208,6 +211,7 @@ internal sealed partial class PlayerForm : Form
                 3 => await LoadStalkerAsync(),
                 _ => new List<Channel>()
             };
+            RequirePlaylist(loaded);
             activeSource = source.SelectedIndex;
             offlineCache = false;
             libraryPositions.Clear();
@@ -234,9 +238,14 @@ internal sealed partial class PlayerForm : Form
                 channels.Clear(); channels.AddRange(cached); OnChannelsLoaded(); RefreshGroups();
                 status.Text = $"Çevrimdışı önbellek: {cached.Count} öğe ({cachedAt:g}). Yayın için ağ gerekir.";
             }
-            else { status.Text = "Yükleme başarısız."; MessageBox.Show(this, ExplainError(e), "Kaynak hatası"); }
+            else
+            {
+                status.Text = "Yüklenemedi: " + ExplainError(e);
+                MessageBox.Show(sourceDialog is { IsDisposed: false } ? sourceDialog : this,
+                    ExplainError(e), "Kaynak hatası", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
-        finally { UseWaitCursor = false; loadingSource = false; }
+        finally { UseWaitCursor = false; loadingSource = false; SetCinemaLoading(false); }
     }
 
     private static string RequireHttp(string value)
@@ -248,6 +257,8 @@ internal sealed partial class PlayerForm : Form
 
     private async Task<List<Channel>> ParseM3uUrlAsync()
     {
+        NormalizeSourceInput();
+        if (source.SelectedIndex == 0) return await ParseM3uFileAsync();
         string url = RequireHttp(address.Text);
         using var client = new HttpClient(new HttpClientHandler
         {
@@ -285,15 +296,33 @@ internal sealed partial class PlayerForm : Form
             throw new TimeoutException("M3U listesi dört dakikada indirilemedi. Kaynak ağ tanısını kontrol edin.");
         }
         var items = parser.Items;
+        RequirePlaylist(items);
         if (items.Count > 0) _ = TryLoadM3uAccountDatesAsync(url, stalkerCatalogGeneration);
         return items;
     }
 
     private async Task<List<Channel>> ParseM3uFileAsync()
     {
-        string content = await File.ReadAllTextAsync(address.Text.Trim());
-        DiscoverEpgUrl(content, null);
-        return await Task.Run(() => ParseM3u(content, null));
+        NormalizeSourceInput();
+        if (source.SelectedIndex == 1) return await ParseM3uUrlAsync();
+        await using var stream = new FileStream(address.Text, FileMode.Open, FileAccess.Read, FileShare.Read,
+            64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using var reader = new StreamReader(stream, Encoding.UTF8, true, 64 * 1024);
+        var parser = new M3uAccumulator();
+        string? line = await reader.ReadLineAsync();
+        if (line != null) { DiscoverEpgUrl(line, null); parser.AddLine(line, null); }
+        int count = 0;
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            parser.AddLine(line, null);
+            if (++count % 5000 == 0)
+            {
+                status.Text = $"Dosya işleniyor: {parser.Items.Count:N0} yayın...";
+                await Task.Delay(1);
+            }
+        }
+        RequirePlaylist(parser.Items);
+        return parser.Items;
     }
 
     private void DiscoverEpgUrl(string content, Uri? baseUrl)
@@ -320,12 +349,14 @@ internal sealed partial class PlayerForm : Form
     {
         public List<Channel> Items { get; } = new();
         private string name = "Yayın", group = "Genel", epgId = "", logo = "";
+        private bool hasInfo;
 
         public void AddLine(string line, Uri? baseUri)
         {
             string item = line.Trim();
             if (item.StartsWith("#EXTINF", StringComparison.OrdinalIgnoreCase))
             {
+                hasInfo = true;
                 var groupMatch = Regex.Match(item, "group-title=\"([^\"]*)\"", RegexOptions.IgnoreCase);
                 group = groupMatch.Success ? groupMatch.Groups[1].Value : "Genel";
                 var idMatch = Regex.Match(item, "tvg-id=\"([^\"]*)\"", RegexOptions.IgnoreCase);
@@ -339,10 +370,11 @@ internal sealed partial class PlayerForm : Form
             {
                 if (Uri.TryCreate(item, UriKind.Absolute, out var absolute) && (absolute.Scheme == "http" || absolute.Scheme == "https"))
                     Items.Add(new Channel(name, group, absolute.ToString(), KindFromGroup(group), EpgId: epgId, PosterUrl: logo));
-                else if (baseUri != null && Uri.TryCreate(baseUri, item, out var relative) &&
+                else if (hasInfo && baseUri != null && Uri.TryCreate(baseUri, item, out var relative) &&
                     (relative.Scheme == "http" || relative.Scheme == "https"))
                     Items.Add(new Channel(name, group, relative.ToString(), KindFromGroup(group), EpgId: epgId, PosterUrl: logo));
                 name = "Yayın"; group = "Genel"; epgId = ""; logo = "";
+                hasInfo = false;
             }
         }
     }
@@ -825,3 +857,4 @@ internal sealed partial class PlayerForm : Form
         return base.ProcessCmdKey(ref msg, keyData);
     }
 }
+

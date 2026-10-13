@@ -106,7 +106,7 @@ internal sealed partial class PlayerForm
     {
         try
         {
-            if (!File.Exists(SourcesFile)) return;
+            if (!File.Exists(SourcesFile)) { RefreshSources(); return; }
             byte[] encoded = File.ReadAllBytes(SourcesFile);
             byte[] plain = ProtectedData.Unprotect(encoded, null, DataProtectionScope.CurrentUser);
             savedSources.AddRange(JsonSerializer.Deserialize<List<SavedSource>>(plain) ?? new());
@@ -127,9 +127,13 @@ internal sealed partial class PlayerForm
 
     private void RefreshSources()
     {
+        int previous = savedSourceBox.SelectedIndex;
         savedSourceBox.Items.Clear();
         foreach (var item in savedSources)
             savedSourceBox.Items.Add(item.Name + (SourceRemaining(item.Expires ?? "") is string remaining ? " (" + remaining + ")" : ""));
+        if (savedSources.Count == 0) savedSourceBox.Items.Add("Henüz kayıtlı kaynak yok");
+        savedSourceBox.SelectedIndex = Math.Clamp(previous, 0, savedSourceBox.Items.Count - 1);
+        RefreshSourceDialogProfiles();
     }
 
     private void SaveSource()
@@ -138,6 +142,7 @@ internal sealed partial class PlayerForm
         if (name.Length == 0 || String.IsNullOrWhiteSpace(address.Text)) return;
         try
         {
+            NormalizeSourceInput();
             var entry = new SavedSource(name, source.SelectedIndex, address.Text.Trim(), username.Text.Trim(), password.Text,
                 epgAddress.Text.Trim(), currentStarted, currentExpires);
             int index = savedSources.FindIndex(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -347,3 +352,4 @@ internal sealed partial class PlayerForm
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Windows VPN ayarları"); }
     }
 }
+

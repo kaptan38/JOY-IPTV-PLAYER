@@ -142,6 +142,31 @@ internal sealed partial class PlayerForm
         using var bitmap = new Bitmap(cinemaRoot.Width, cinemaRoot.Height);
         cinemaRoot.DrawToBitmap(bitmap, new Rectangle(0, 0, cinemaRoot.Width, cinemaRoot.Height));
         bitmap.Save(screenshotPath, ImageFormat.Png);
+        using (var sourceWindow = BuildCinemaSourcesWindow())
+        {
+            sourceWindow.Show(this); Application.DoEvents();
+            source.SelectedIndex = 2; Application.DoEvents();
+            if (!username.Visible || !password.Visible) throw new InvalidOperationException("Xtream alanları görünmüyor.");
+            source.SelectedIndex = 3; Application.DoEvents();
+            if (!username.Visible || password.Visible) throw new InvalidOperationException("Stalker alanları hatalı.");
+            source.SelectedIndex = 0; address.Text = "https://example.invalid/playlist.m3u"; Application.DoEvents();
+            if (address.Width < 500 || sourceWindow.ClientSize.Height < 500)
+                throw new InvalidOperationException("Kaynak penceresi adres alanı dar veya kırpılmış.");
+            using var sourceImage = new Bitmap(sourceWindow.Width, sourceWindow.Height);
+            sourceWindow.DrawToBitmap(sourceImage, new Rectangle(Point.Empty, sourceWindow.Size));
+            sourceImage.Save(Path.Combine(Path.GetDirectoryName(screenshotPath)!, "JOY_IPTV_Kaynak_Onizleme.png"), ImageFormat.Png);
+            sourceWindow.Close();
+        }
+        if (address.IsDisposed || source.IsDisposed) throw new InvalidOperationException("Kaynak alanları pencere kapatılınca silindi.");
+        channels.Clear(); kinds.SelectedItem = "Tümü"; RefreshGroups(); Application.DoEvents();
+        if (cinemaEmpty == null || !cinemaEmpty.Visible || cinemaPlayButton!.Enabled)
+            throw new InvalidOperationException("Boş ana sayfa kontrolü başarısız.");
+        foreach (int theme in new[] { 9, 10, 11, 12, 13 }) themeBox.SelectedIndex = theme;
+        themeBox.SelectedIndex = 9;
+        using var homeImage = new Bitmap(cinemaRoot.Width, cinemaRoot.Height);
+        cinemaRoot.DrawToBitmap(homeImage, new Rectangle(Point.Empty, cinemaRoot.Size));
+        homeImage.Save(Path.Combine(Path.GetDirectoryName(screenshotPath)!, "JOY_IPTV_AnaSayfa_Onizleme.png"), ImageFormat.Png);
         Close();
     }
 }
+

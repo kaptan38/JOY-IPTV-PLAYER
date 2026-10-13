@@ -16,6 +16,7 @@ internal sealed class PosterGallery : ScrollableControl
     private readonly Font titleFont = new("Segoe UI", 10, FontStyle.Bold);
     private readonly Font smallFont = new("Segoe UI", 9);
     private readonly Font symbolFont = new("Segoe UI", 30, FontStyle.Bold);
+    private int hoverIndex = -1;
     internal event EventHandler? SelectionChanged;
     internal event EventHandler? ItemActivated;
     internal event EventHandler? ImageReady;
@@ -56,19 +57,21 @@ internal sealed class PosterGallery : ScrollableControl
     private async Task DownloadAsync(string url)
     {
         bool acquired = false;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(12));
         try
         {
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
                 throw new FormatException();
             await downloads.WaitAsync(lifetime.Token); acquired = true;
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, lifetime.Token);
+            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             response.EnsureSuccessStatusCode();
             const int limit = 3 * 1024 * 1024;
             if (response.Content.Headers.ContentLength > limit) throw new InvalidDataException();
-            using var input = await response.Content.ReadAsStreamAsync(lifetime.Token);
+            using var input = await response.Content.ReadAsStreamAsync(timeout.Token);
             using var memory = new MemoryStream();
             byte[] buffer = new byte[16384]; int read;
-            while ((read = await input.ReadAsync(buffer, lifetime.Token)) > 0)
+            while ((read = await input.ReadAsync(buffer, timeout.Token)) > 0)
             {
                 if (memory.Length + read > limit) throw new InvalidDataException();
                 memory.Write(buffer, 0, read);
@@ -76,7 +79,8 @@ internal sealed class PosterGallery : ScrollableControl
             memory.Position = 0;
             using var original = Image.FromStream(memory);
             if ((long)original.Width * original.Height > 20_000_000) throw new InvalidDataException();
-            var bitmap = new Bitmap(original, 220, 330);
+            float shrink = Math.Min(1f, Math.Min(440f / original.Width, 440f / original.Height));
+            var bitmap = new Bitmap(original, Math.Max(1, (int)(original.Width * shrink)), Math.Max(1, (int)(original.Height * shrink)));
             if (IsDisposed) { bitmap.Dispose(); return; }
             if (images.Count >= 128)
             {
@@ -84,7 +88,7 @@ internal sealed class PosterGallery : ScrollableControl
             }
             images[url] = bitmap; Invalidate(); ImageReady?.Invoke(this, EventArgs.Empty);
         }
-        catch { if (!IsDisposed) failed.Add(url); }
+        catch { if (!IsDisposed) { if (failed.Count >= 512) failed.Clear(); failed.Add(url); } }
         finally { if (acquired) downloads.Release(); pending.Remove(url); }
     }
 
@@ -125,12 +129,33 @@ internal sealed class PosterGallery : ScrollableControl
             }
             else
             {
-                TextRenderer.DrawText(e.Graphics, item.Kind == "Canlı TV" ? "TV" : item.Kind == "Film" ? "F" : "D",
-                    symbolFont, poster, Color.FromArgb(205, 225, 232), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-                TextRenderer.DrawText(e.Graphics, item.Kind, smallFont,
-                    new Rectangle(x + 9, poster.Bottom - 28, CardWidth - 18, 22), Color.White, TextFormatFlags.HorizontalCenter);
+                using var decoration = new Pen(Color.FromArgb(40, 230, 240, 255), 1);
+                for (int orbit = 0; orbit < 3; orbit++)
+                    e.Graphics.DrawEllipse(decoration, poster.X + poster.Width / 2 - 42 - orbit * 22,
+                        poster.Y + 30 - orbit * 14, 84 + orbit * 44, 84 + orbit * 44);
+                TextRenderer.DrawText(e.Graphics, item.Name, titleFont,
+                    new Rectangle(x + 16, y + poster.Height / 2 - 10, CardWidth - 32, poster.Height / 2 - 30),
+                    Color.White, TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                TextRenderer.DrawText(e.Graphics, "JOY KÜTÜPHANE", smallFont,
+                    new Rectangle(x + 12, poster.Bottom - 30, CardWidth - 24, 22), Color.FromArgb(190, 213, 225), TextFormatFlags.SingleLine);
             }
-            if (index == SelectedIndex) { using var pen = new Pen(Accent, 3); e.Graphics.DrawPath(pen, path); }
+            var badge = new Rectangle(x + 10, y + 10, Math.Min(CardWidth - 20, 74), 25);
+            using var badgeFill = new SolidBrush(Color.FromArgb(220, 22, 31, 44));
+            using var badgePath = Rounded(badge, 6); e.Graphics.FillPath(badgeFill, badgePath);
+            TextRenderer.DrawText(e.Graphics, item.Kind == "Canlı TV" ? "CANLI" : item.Kind.ToUpperInvariant(), smallFont,
+                badge, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+            if (index == SelectedIndex || index == hoverIndex)
+            {
+                using var pen = new Pen(index == SelectedIndex ? Accent : Muted, index == SelectedIndex ? 3 : 1);
+                e.Graphics.DrawPath(pen, path);
+                if (index == hoverIndex)
+                {
+                    var play = new Rectangle(poster.Right - 48, poster.Bottom - 49, 35, 35);
+                    using var playFill = new SolidBrush(Accent); e.Graphics.FillEllipse(playFill, play);
+                    TextRenderer.DrawText(e.Graphics, "▶", titleFont, play, Color.FromArgb(14, 40, 46),
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+            }
             TextRenderer.DrawText(e.Graphics, item.Name, titleFont, new Rectangle(x, poster.Bottom + 8, CardWidth, 25),
                 ForeColor, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
             TextRenderer.DrawText(e.Graphics, item.Group, smallFont, new Rectangle(x, poster.Bottom + 34, CardWidth, 20),
@@ -149,12 +174,25 @@ internal sealed class PosterGallery : ScrollableControl
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e); Focus();
-        int column = (e.X - 12) / (CardWidth + 18), row = (e.Y - 10 - AutoScrollPosition.Y) / CardHeight;
-        if (e.X < 12 || row < 0 || column < 0 || column >= Columns) return;
-        if ((e.X - 12) % (CardWidth + 18) >= CardWidth) return;
-        SelectItem(row * Columns + column);
+        int index = HitIndex(e.Location); if (index >= 0) SelectItem(index);
     }
-    protected override void OnDoubleClick(EventArgs e) { base.OnDoubleClick(e); if (SelectedIndex >= 0) ItemActivated?.Invoke(this, e); }
+    private int HitIndex(Point point)
+    {
+        int localY = point.Y - 10 - AutoScrollPosition.Y;
+        if (point.X < 12 || localY < 0) return -1;
+        int column = (point.X - 12) / (CardWidth + 18), row = localY / CardHeight;
+        int index = row * Columns + column;
+        return column >= Columns || (point.X - 12) % (CardWidth + 18) >= CardWidth || index >= items.Count ? -1 : index;
+    }
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e); int next = HitIndex(e.Location);
+        if (hoverIndex == next) return;
+        hoverIndex = next; Cursor = next >= 0 ? Cursors.Hand : Cursors.Default; Invalidate();
+    }
+    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hoverIndex = -1; Invalidate(); }
+    protected override void OnDoubleClick(EventArgs e)
+    { base.OnDoubleClick(e); if (HitIndex(PointToClient(Cursor.Position)) >= 0 && SelectedIndex >= 0) ItemActivated?.Invoke(this, e); }
     protected override bool IsInputKey(Keys keyData) => (keyData & Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down || base.IsInputKey(keyData);
     protected override void OnKeyDown(KeyEventArgs e)
     {
@@ -181,3 +219,4 @@ internal sealed class PosterGallery : ScrollableControl
         base.Dispose(disposing);
     }
 }
+

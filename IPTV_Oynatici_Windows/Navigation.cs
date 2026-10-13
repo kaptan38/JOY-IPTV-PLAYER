@@ -36,6 +36,7 @@ internal sealed partial class PlayerForm
 
     private void UpdateLibraryCounts()
     {
+        RefreshCinemaCounts();
         if (libraryTabs.Count == 0) return;
         var counts = channels.GroupBy(c => c.Kind).ToDictionary(g => g.Key, g => g.Count());
         foreach (var (kind, button) in libraryTabs)
@@ -90,6 +91,7 @@ internal sealed partial class PlayerForm
         Add(playback, "İzlemeye devam et", (_, _) => ShowContinueWatching());
         Add(playback, "Ses ve altyazı izleri", (_, _) => ShowTracks());
 
+        Add(recording, "Şimdi kayda al", async (_, _) => { await StartRecordingAsync(); });
         Add(recording, "Kayıtları yönet", (_, _) => ShowRecordingManager());
         Add(recording, "Zamanlanmış kayıt ekle", (_, _) => AddScheduledRecording());
         Add(recording, "Kayıt planlarını göster", (_, _) => ShowSchedules());
@@ -245,3 +247,4 @@ internal sealed partial class PlayerForm
         public override Color MenuBorder => foreground;
     }
 }
+

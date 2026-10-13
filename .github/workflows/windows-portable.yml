@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: JOY_IPTV_Menu_Onizleme
-          path: JOY_IPTV_Menu_Onizleme.png
+          path: JOY_IPTV_*Onizleme.png
           if-no-files-found: error
           retention-days: 14
 

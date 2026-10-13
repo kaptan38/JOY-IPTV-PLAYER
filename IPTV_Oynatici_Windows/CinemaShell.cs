@@ -10,6 +10,9 @@ internal sealed partial class PlayerForm
     private Panel? cinemaVideoHost, cinemaMainHost;
     private PosterGallery? cinemaGallery;
     private FlowLayoutPanel? cinemaDetails;
+    private TableLayoutPanel? cinemaEmpty;
+    private Label? cinemaEmptyTitle, cinemaEmptyText;
+    private Button? cinemaPlayButton, cinemaFavoriteButton;
     private readonly Dictionary<string, Button> cinemaRail = new();
     private readonly List<Button> cinemaAllRail = new();
     private readonly ContextMenuStrip cinemaToolsMenu = new();
@@ -57,8 +60,8 @@ internal sealed partial class PlayerForm
         rail.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
         rail.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         rail.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
-        rail.Controls.Add(new Label { Dock = DockStyle.Fill, Text = "▶ JOY IPTV", TextAlign = ContentAlignment.MiddleLeft,
-            Font = new Font("Segoe UI", 18, FontStyle.Bold) }, 0, 0);
+        rail.Controls.Add(new Label { Dock = DockStyle.Fill, Text = "▶ JOY\nIPTV PLAYER", TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 14, FontStyle.Bold) }, 0, 0);
         var railItems = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
             WrapContents = false, AutoScroll = true };
         foreach (var item in new[] { ("Tümü", "⌂  Ana Sayfa"), ("Canlı TV", "▣  Canlı TV"), ("Film", "▤  Filmler"),
@@ -125,14 +128,17 @@ internal sealed partial class PlayerForm
         video.Dock = DockStyle.Fill; cinemaVideoHost.Controls.Add(video); cinemaVideoHost.Controls.Add(left);
         cinemaGallery = new PosterGallery { Dock = DockStyle.Fill };
         cinemaMainHost.Controls.Add(cinemaVideoHost); cinemaMainHost.Controls.Add(cinemaGallery);
+        SetupCinemaEmptyState();
         body.Controls.Add(cinemaMainHost, 0, 0);
         cinemaDetails = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 4, 0),
             FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true };
         cinemaDetails.Controls.Add(cinemaPoster); cinemaDetails.Controls.Add(cinemaItemTitle);
         cinemaDetails.Controls.Add(cinemaItemMeta); cinemaDetails.Controls.Add(cinemaItemPlot);
         var play = Button("▶  Şimdi İzle", async (_, _) => await PlaySelectedAsync());
+        cinemaPlayButton = play;
         play.Width = 242; play.Height = 42; play.AutoSize = false; cinemaDetails.Controls.Add(play);
         var favorite = Button("♡  Favoriye ekle / çıkar", (_, _) => ToggleFavorite());
+        cinemaFavoriteButton = favorite;
         favorite.Width = 242; favorite.Height = 40; favorite.AutoSize = false; cinemaDetails.Controls.Add(favorite);
         cinemaDetails.Controls.Add(cinemaRecommendation);
         cinemaDetails.Controls.Add(Button("✦  Sana özel öneriler", (_, _) =>
@@ -161,6 +167,12 @@ internal sealed partial class PlayerForm
         transport.Controls.Add(fullscreenButton, 5, 0); playbackBar.Controls.Add(transport);
         cinemaRoot.Controls.Add(playbackBar, 0, 1); cinemaRoot.SetColumnSpan(playbackBar, 2);
         Controls.Add(cinemaRoot); cinemaRoot.BringToFront();
+        cinemaMainHost.Controls.Add(cinemaLoadProgress); cinemaLoadProgress.BringToFront();
+        status.TextChanged += (_, _) =>
+        {
+            if (sourceDialogResult != null) sourceDialogResult.Text = status.Text;
+            RefreshCinemaEmptyState();
+        };
         cinemaGallery.SelectionChanged += (_, _) =>
         { if (cinemaGallery.SelectedIndex >= 0 && cinemaGallery.SelectedIndex < list.Items.Count) list.SelectedIndex = cinemaGallery.SelectedIndex; };
         cinemaGallery.ItemActivated += async (_, _) => await PlaySelectedAsync();
@@ -171,12 +183,14 @@ internal sealed partial class PlayerForm
         FormClosed += (_, _) => { cinemaPoster.Image?.Dispose(); cinemaToolsMenu.Dispose(); top.Dispose(); };
         ResumeLayout(); ApplyTheme();
         if (channels.Count == 0) kinds.SelectedItem = "Tümü";
+        RefreshCinemaCounts();
         RefreshCinemaCatalog();
     }
 
     private Button RailButton(string text, EventHandler click)
     {
-        var button = Button(text, click); button.Width = 145; button.Height = 42; button.AutoSize = false;
+        var button = Button(text, click); button.Width = 145; button.Height = 48; button.AutoSize = false;
+        button.Font = new Font("Segoe UI", 9.5f);
         button.TextAlign = ContentAlignment.MiddleLeft; button.Margin = new Padding(0, 0, 0, 6);
         button.FlatAppearance.BorderSize = 0; cinemaAllRail.Add(button); return button;
     }
@@ -185,11 +199,10 @@ internal sealed partial class PlayerForm
 
     private void ShowCinemaSources()
     {
-        using var window = new Form { Text = "JOY IPTV • Kaynak ekle ve yönet", Width = 840, Height = 340,
-            StartPosition = FormStartPosition.CenterParent, BackColor = BackColor, ForeColor = ForeColor, Font = Font };
-        top.Dock = DockStyle.Fill; top.Visible = true; window.Controls.Add(top);
+        if (sourceDialog is { IsDisposed: false }) { sourceDialog.Activate(); return; }
+        using var window = BuildCinemaSourcesWindow();
         try { window.ShowDialog(this); }
-        finally { window.Controls.Remove(top); top.Visible = false; top.Dock = DockStyle.Top; }
+        finally { if (sourceDialog != null) ReleaseCinemaSourceWindow(); }
     }
 
     private void RefreshCinemaCatalog()
@@ -216,12 +229,15 @@ internal sealed partial class PlayerForm
             pair.Value.BackColor = active ? selectionColor : top.BackColor;
             pair.Value.ForeColor = active ? Color.FromArgb(14, 40, 46) : ForeColor;
         }
+        RefreshCinemaEmptyState();
     }
 
     private void RefreshCinemaDetails()
     {
         if (cinemaGallery == null) return;
         var item = list.SelectedIndex >= 0 && list.SelectedIndex < visible.Count ? visible[list.SelectedIndex] : null;
+        if (cinemaPlayButton != null) cinemaPlayButton.Enabled = item != null;
+        if (cinemaFavoriteButton != null) cinemaFavoriteButton.Enabled = item != null;
         if (item == null)
         {
             cinemaItemTitle.Text = "İçerik seçin"; cinemaItemMeta.Text = ""; cinemaItemPlot.Text = "Kaynaklar bölümünden M3U, Xtream veya Stalker kaynağı ekleyebilirsiniz.";
@@ -271,6 +287,52 @@ internal sealed partial class PlayerForm
         UpdateCinemaMode();
     }
 
+    private void SetupCinemaEmptyState()
+    {
+        cinemaEmpty = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 5 };
+        cinemaEmpty.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10));
+        cinemaEmpty.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80));
+        cinemaEmpty.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10));
+        cinemaEmpty.RowStyles.Add(new RowStyle(SizeType.Percent, 30));
+        cinemaEmpty.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        cinemaEmpty.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
+        cinemaEmpty.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+        cinemaEmpty.RowStyles.Add(new RowStyle(SizeType.Percent, 70));
+        cinemaEmptyTitle = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI", 22, FontStyle.Bold) };
+        cinemaEmptyText = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopCenter };
+        cinemaEmpty.Controls.Add(cinemaEmptyTitle, 1, 1); cinemaEmpty.Controls.Add(cinemaEmptyText, 1, 2);
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true };
+        var add = Button("＋ Kaynak ekle", (_, _) => ShowCinemaSources()); add.Height = 42; actions.Controls.Add(add);
+        actions.Controls.Add(Button("Filtreleri temizle", (_, _) =>
+        { filter.Clear(); favoritesOnly.Checked = false; kinds.SelectedItem = "Tümü"; RefreshGroups(); }));
+        cinemaEmpty.Controls.Add(actions, 1, 3); cinemaMainHost!.Controls.Add(cinemaEmpty);
+    }
+
+    private void RefreshCinemaEmptyState()
+    {
+        if (cinemaEmpty == null || cinemaEmptyTitle == null || cinemaEmptyText == null) return;
+        bool empty = visible.Count == 0 && !cinemaPlayingView;
+        cinemaEmpty.Visible = empty;
+        if (!empty) return;
+        cinemaEmptyTitle.Text = loadingSource ? "Kütüphane hazırlanıyor" : channels.Count == 0
+            ? "JOY'a hoş geldin" : "Eşleşen içerik bulunamadı";
+        cinemaEmptyText.Text = loadingSource ? status.Text : channels.Count == 0
+            ? "Canlı TV, filmler ve diziler bir arada.\nM3U, Xtream veya Stalker kaynağını ekleyerek başla."
+                + (status.Text.StartsWith("Yüklenemedi:", StringComparison.Ordinal) ? "\n\n" + status.Text : "")
+            : "Aramayı, kategoriyi veya favori filtresini değiştirerek yeniden dene.";
+        cinemaEmpty.BringToFront();
+    }
+
+    private void RefreshCinemaCounts()
+    {
+        var counts = channels.GroupBy(c => c.Kind).ToDictionary(g => g.Key, g => g.Count());
+        foreach (var kind in new[] { "Canlı TV", "Film", "Dizi" })
+            if (cinemaRail.TryGetValue(kind, out var button))
+                button.Text = (kind == "Canlı TV" ? "▣  Canlı TV" : kind == "Film" ? "▤  Filmler" : "▥  Diziler")
+                    + $"\n     {counts.GetValueOrDefault(kind):N0} içerik";
+    }
+
     private void ShowCinemaPlayback()
     {
         if (cinemaRoot == null) return;
@@ -299,3 +361,4 @@ internal sealed partial class PlayerForm
         }
     }
 }
+

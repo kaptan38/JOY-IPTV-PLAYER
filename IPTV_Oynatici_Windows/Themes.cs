@@ -11,7 +11,7 @@ internal sealed partial class PlayerForm
     {
         themeBox.Items.AddRange(new object[] { "Gece Antrasit", "Okyanus", "Açık", "Gece Moru",
             "Orman", "Gün Batımı", "Kömür Altın", "Gece Petrol", "Fildişi",
-            "Slate Şeftali", "Slate Buz", "Slate Zümrüt" });
+            "Slate Şeftali", "Slate Buz", "Slate Zümrüt", "Slate Kehribar", "Slate Gül" });
         toolbar.Controls.Add(themeBox);
         toolbar.Controls.Add(Button("Görüntü bilgisi", (_, _) => ShowVideoInfo()));
         themeBox.SelectedIndexChanged += (_, _) => ApplyTheme();
@@ -70,13 +70,17 @@ internal sealed partial class PlayerForm
     {
         int index = Math.Max(0, themeBox.SelectedIndex);
         Color page, panel, input, ink, muted, accent;
-        if (index is 9 or 10 or 11)
+        if (index is >= 9 and <= 13)
         {
             page = Color.FromArgb(22, 29, 40); panel = Color.FromArgb(30, 40, 54);
             input = Color.FromArgb(38, 50, 66); ink = Color.FromArgb(238, 242, 247);
             muted = Color.FromArgb(180, 196, 211);
-            accent = index == 9 ? Color.FromArgb(159, 85, 66) : index == 10
-                ? Color.FromArgb(50, 108, 153) : Color.FromArgb(32, 112, 98);
+            accent = index switch
+            {
+                9 => Color.FromArgb(159, 85, 66), 10 => Color.FromArgb(50, 108, 153),
+                11 => Color.FromArgb(32, 112, 98), 12 => Color.FromArgb(145, 105, 40),
+                _ => Color.FromArgb(144, 73, 106)
+            };
         }
         else if (index == 2)
         {
@@ -175,3 +179,4 @@ internal sealed partial class PlayerForm
         }
     }
 }
+

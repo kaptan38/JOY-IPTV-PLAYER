@@ -14,6 +14,16 @@ internal static class SourceRegression
     private static void Check(bool condition, string message)
     { if (!condition) throw new InvalidOperationException(message); }
 
+    private static IList Read(object form, string method)
+    {
+        var task = (Task)Call(form, method)!;
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (!task.IsCompleted && DateTime.UtcNow < deadline) { Application.DoEvents(); Thread.Sleep(5); }
+        Check(task.IsCompleted, "FAIL: Playlist load did not finish.");
+        task.GetAwaiter().GetResult();
+        return (IList)task.GetType().GetProperty("Result")!.GetValue(task)!;
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -49,6 +59,25 @@ internal static class SourceRegression
             Check(mode.SelectedIndex == 1, "FAIL: URL input did not switch to M3U URL.");
             serving.GetAwaiter().GetResult();
             Console.WriteLine("PASS: HTTP URL entered in M3U file mode loads the playlist and selects URL mode.");
+            string path = Path.Combine(Path.GetTempPath(), "JOY test " + Guid.NewGuid().ToString("N") + ".m3u");
+            try
+            {
+                File.WriteAllText(path, "#EXTM3U\n#EXTINF:-1,Local TV\nhttp://127.0.0.1/live.ts\n");
+                mode.SelectedIndex = 1; address.Text = "\"" + path + "\"";
+                Check(Read(form, "ParseM3uUrlAsync").Count == 1 && mode.SelectedIndex == 0,
+                    "FAIL: Quoted local file in URL mode did not switch to file mode.");
+                Console.WriteLine("PASS: Quoted local file in URL mode loads correctly.");
+                File.WriteAllText(path, "<html>Service unavailable</html>");
+                try { Read(form, "ParseM3uFileAsync"); throw new Exception("FAIL: HTML response was accepted as an empty playlist."); }
+                catch (InvalidDataException) { Console.WriteLine("PASS: Invalid playlist reports an actionable error."); }
+            }
+            finally { File.Delete(path); }
+            mode.SelectedIndex = 3; address.Text = "http://127.0.0.1/portal/";
+            Call(form, "NormalizeSourceInput");
+            Check(mode.SelectedIndex == 3, "FAIL: Stalker mode was overwritten by URL detection.");
+            mode.SelectedIndex = 2; Call(form, "NormalizeSourceInput");
+            Check(mode.SelectedIndex == 2, "FAIL: Xtream mode was overwritten by URL detection.");
+            Console.WriteLine("PASS: Xtream and Stalker modes are preserved.");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
