@@ -2,7 +2,7 @@ name: JOY IPTV - Tek EXE
 on:
   workflow_dispatch:
   push:
-    branches: [main, master, source-ui-fix, loading-performance-fix]
+    branches: [main, master, source-ui-fix, loading-performance-fix, catalog-category-fix]
     paths:
       - 'IPTV_Oynatici_Windows/**'
       - 'Tests/**'

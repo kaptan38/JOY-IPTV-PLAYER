@@ -139,6 +139,18 @@ internal static class SourceRegression
             loading.GetAwaiter().GetResult(); slowContext.Response.Abort();
             Check(sourceWindow.IsDisposed && !address.IsDisposed, "FAIL: Cancellation did not release source window safely.");
             Console.WriteLine("PASS: Closing source window cancels an ongoing stalled HTTP download.");
+            string mixed = "#EXTM3U\n" +
+                "#EXTINF:-1 group-title=\"TR Sinema\",Movie One\nhttp://127.0.0.1/movie/user/pass/1.mp4\n" +
+                "#EXTINF:-1 group-title=\"TR Netflix\",Series One\nhttp://127.0.0.1/series/user/pass/2.mp4\n" +
+                "#EXTINF:-1 group-title=\"TR Sinema\",Movie Two\nhttp://127.0.0.1/anything/3.mkv\n" +
+                "#EXTINF:-1 group-title=\"DİZİLER\",Series Two\nhttp://127.0.0.1/anything/4.mp4\n" +
+                "#EXTINF:-1 group-title=\"Show TV\",Show TV\nhttp://127.0.0.1/live/user/pass/5.ts\n";
+            var mixedItems = (IList)parse.Invoke(null, new object?[] { mixed, null })!;
+            string[] expected = { "Film", "Dizi", "Film", "Dizi", "Canlı TV" };
+            for (int i = 0; i < expected.Length; i++)
+                Check(mixedItems[i]!.GetType().GetProperty("Kind")!.GetValue(mixedItems[i])?.ToString() == expected[i],
+                    $"FAIL: M3U catalog entry {i} was assigned to the wrong library.");
+            Console.WriteLine("PASS: M3U movies, series and live TV are classified without changing provider order.");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
