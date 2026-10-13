@@ -55,6 +55,7 @@ internal sealed partial class PlayerForm
     private Task<(List<Channel> Items, DateTime SavedAt)> ReadChannelCacheAsync()
     {
         string path = CacheFile;
+        bool m3u = source.SelectedIndex is 0 or 1;
         return Task.Run(() =>
         {
             try
@@ -62,7 +63,8 @@ internal sealed partial class PlayerForm
                 byte[] encrypted = File.ReadAllBytes(path);
                 byte[] plain = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
                 var cached = JsonSerializer.Deserialize<CachedChannels>(plain);
-                if (cached != null && cached.Items.Count > 0) return (cached.Items, cached.SavedAt);
+                if (cached != null && cached.Items.Count > 0)
+                    return (m3u ? NormalizeM3uKinds(cached.Items) : cached.Items, cached.SavedAt);
             }
             catch { /* A missing or damaged cache never prevents network loading. */ }
             return (new List<Channel>(), default(DateTime));

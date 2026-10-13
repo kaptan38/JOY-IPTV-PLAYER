@@ -372,21 +372,14 @@ internal sealed partial class PlayerForm : Form
                 if (!kindsByGroup.TryGetValue(group, out string? kind))
                     kindsByGroup[group] = kind = KindFromGroup(group);
                 if (Uri.TryCreate(item, UriKind.Absolute, out var absolute) && (absolute.Scheme == "http" || absolute.Scheme == "https"))
-                    Items.Add(new Channel(name, group, absolute.ToString(), kind, EpgId: epgId, PosterUrl: logo));
+                    Items.Add(new Channel(name, group, absolute.ToString(), KindFromM3uUri(absolute, kind), EpgId: epgId, PosterUrl: logo));
                 else if (hasInfo && baseUri != null && Uri.TryCreate(baseUri, item, out var relative) &&
                     (relative.Scheme == "http" || relative.Scheme == "https"))
-                    Items.Add(new Channel(name, group, relative.ToString(), kind, EpgId: epgId, PosterUrl: logo));
+                    Items.Add(new Channel(name, group, relative.ToString(), KindFromM3uUri(relative, kind), EpgId: epgId, PosterUrl: logo));
                 name = "Yayın"; group = "Genel"; epgId = ""; logo = "";
                 hasInfo = false;
             }
         }
-    }
-
-    private static string KindFromGroup(string group)
-    {
-        if (Regex.IsMatch(group, "film|movie|vod", RegexOptions.IgnoreCase)) return "Film";
-        if (Regex.IsMatch(group, "dizi|series|show", RegexOptions.IgnoreCase)) return "Dizi";
-        return "Canlı TV";
     }
 
     private async Task<List<Channel>> LoadXtreamAsync()

@@ -142,7 +142,7 @@ internal static class SourceRegression
             string mixed = "#EXTM3U\n" +
                 "#EXTINF:-1 group-title=\"TR Sinema\",Movie One\nhttp://127.0.0.1/movie/user/pass/1.mp4\n" +
                 "#EXTINF:-1 group-title=\"TR Netflix\",Series One\nhttp://127.0.0.1/series/user/pass/2.mp4\n" +
-                "#EXTINF:-1 group-title=\"TR Sinema\",Movie Two\nhttp://127.0.0.1/anything/3.mkv\n" +
+                "#EXTINF:-1 group-title=\"TR SİNEMA\",Movie Two\nhttp://127.0.0.1/anything/3.mkv\n" +
                 "#EXTINF:-1 group-title=\"DİZİLER\",Series Two\nhttp://127.0.0.1/anything/4.mp4\n" +
                 "#EXTINF:-1 group-title=\"Show TV\",Show TV\nhttp://127.0.0.1/live/user/pass/5.ts\n";
             var mixedItems = (IList)parse.Invoke(null, new object?[] { mixed, null })!;
@@ -151,6 +151,18 @@ internal static class SourceRegression
                 Check(mixedItems[i]!.GetType().GetProperty("Kind")!.GetValue(mixedItems[i])?.ToString() == expected[i],
                     $"FAIL: M3U catalog entry {i} was assigned to the wrong library.");
             Console.WriteLine("PASS: M3U movies, series and live TV are classified without changing provider order.");
+            for (int i = 0; i < 4; i++) mixedItems[i]!.GetType().GetProperty("Kind")!.SetValue(mixedItems[i], "Canlı TV");
+            var normalized = (IList)form.GetType().GetMethod("NormalizeM3uKinds", BindingFlags.NonPublic | BindingFlags.Static)!
+                .Invoke(null, new object[] { mixedItems })!;
+            for (int i = 0; i < expected.Length; i++)
+            {
+                Check(normalized[i]!.GetType().GetProperty("Kind")!.GetValue(normalized[i])?.ToString() == expected[i],
+                    "FAIL: Legacy cached category was not repaired.");
+                Check(normalized[i]!.GetType().GetProperty("Name")!.GetValue(normalized[i])?.ToString() ==
+                    mixedItems[i]!.GetType().GetProperty("Name")!.GetValue(mixedItems[i])?.ToString(),
+                    "FAIL: Reclassification changed provider order.");
+            }
+            Console.WriteLine("PASS: Old cached movies and series are reclassified while retaining names and order.");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
