@@ -12,6 +12,7 @@ internal sealed partial class PlayerForm
 
     private void SwitchLibraryKind()
     {
+        if (updatingLibrary) return;
         string nextKind = kinds.SelectedItem as string ?? "Canlı TV";
         if (nextKind != currentLibraryKind)
         {

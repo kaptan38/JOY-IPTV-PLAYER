@@ -65,7 +65,7 @@ internal sealed partial class PlayerForm
         actions.Controls.Add(sourceLoadButton);
         actions.Controls.Add(Button("Ağ tanısı", async (_, _) => await DiagnoseSourceNetworkAsync()));
         actions.Controls.Add(Button("Kaynak süresi", (_, _) => ShowSourceDates()));
-        var close = Button("Kapat", (_, _) => window.Close()); actions.Controls.Add(close);
+        var close = Button("Kapat / iptal", (_, _) => window.Close()); close.Name = "sourceClose"; actions.Controls.Add(close);
         layout.Controls.Add(actions, 0, 6);
         var feedback = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
         feedback.RowStyles.Add(new RowStyle(SizeType.Absolute, 7));
@@ -79,7 +79,12 @@ internal sealed partial class PlayerForm
         StyleChildren(window, top.BackColor, address.BackColor, ForeColor, detailColor, accent);
         title.ForeColor = ForeColor;
         RefreshSourceDialogProfiles(); UpdateFields(); SetCinemaLoading(loadingSource);
-        window.FormClosing += (_, e) => { if (loadingSource) { e.Cancel = true; sourceDialogResult.Text = "Yükleme sürüyor; tamamlandığında pencereyi kapatabilirsiniz."; } };
+        window.FormClosing += (_, e) =>
+        {
+            if (!loadingSource) return;
+            e.Cancel = true; sourceCloseRequested = true; sourceLoadCancellation?.Cancel();
+            sourceDialogResult.Text = "Yükleme iptal ediliyor...";
+        };
         window.FormClosed += (_, _) => ReleaseCinemaSourceWindow();
         return window;
     }
@@ -136,7 +141,7 @@ internal sealed partial class PlayerForm
     {
         foreach (Control control in parent.Controls)
         {
-            if (control is System.Windows.Forms.Button or TextBox or ComboBox) control.Enabled = enabled;
+            if (control is System.Windows.Forms.Button or TextBox or ComboBox) control.Enabled = enabled || control.Name == "sourceClose";
             else SetSourceInputsEnabled(control, enabled);
         }
     }

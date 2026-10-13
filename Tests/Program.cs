@@ -92,6 +92,24 @@ internal static class SourceRegression
             cache.GetAwaiter().GetResult(); heartbeat.Stop();
             Check(ticks > 0, "FAIL: Saving a 60,000-channel cache blocks the UI heartbeat.");
             Console.WriteLine($"PASS: 60,000-channel cache saved while UI stayed responsive ({ticks} ticks).");
+            var parsedChannels = (IList)catalog;
+            string largeFile = Path.Combine(Path.GetTempPath(), "JOY large " + Guid.NewGuid().ToString("N") + ".m3u");
+            try
+            {
+                File.WriteAllText(largeFile, text.ToString()); mode.SelectedIndex = 0; address.Text = largeFile;
+                ticks = 0; heartbeat.Start();
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var loaded = Read(form, "ParseM3uFileAsync");
+                heartbeat.Stop(); watch.Stop();
+                Check(loaded.Count == parsedChannels.Count && ticks > 0, "FAIL: Large M3U parsing lost entries or blocked the UI.");
+                Console.WriteLine($"PASS: 60,000-channel file parsed in {watch.ElapsedMilliseconds} ms, UI heartbeat {ticks}.");
+                using var cancel = new CancellationTokenSource(); cancel.Cancel();
+                form.GetType().GetField("sourceLoadCancellation", Private)!.SetValue(form, cancel);
+                try { Read(form, "ParseM3uFileAsync"); throw new Exception("FAIL: Cancelled loading continued."); }
+                catch (OperationCanceledException) { Console.WriteLine("PASS: Source loading cancellation is honored."); }
+                finally { form.GetType().GetField("sourceLoadCancellation", Private)!.SetValue(form, null); }
+            }
+            finally { File.Delete(largeFile); }
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }

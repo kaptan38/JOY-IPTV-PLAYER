@@ -25,19 +25,31 @@ internal sealed partial class PlayerForm
     private string CacheFile => Path.Combine(settingsDir, "onbellek", CacheKey() + ".dat");
     private string HistoryFile => Path.Combine(settingsDir, "izleme_gecmisi.json");
 
-    private void SaveChannelCache(List<Channel> items)
+    private readonly SemaphoreSlim cacheWriteGate = new(1, 1);
+
+    private async Task SaveChannelCache(List<Channel> items)
     {
+        string path = CacheFile;
+        var snapshot = items.ToList();
+        DateTime savedAt = DateTime.Now;
         try
         {
-            string path = CacheFile;
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            byte[] plain = JsonSerializer.SerializeToUtf8Bytes(new CachedChannels(DateTime.Now, items));
-            byte[] encrypted = ProtectedData.Protect(plain, null, DataProtectionScope.CurrentUser);
-            string temp = path + ".tmp";
-            File.WriteAllBytes(temp, encrypted);
-            File.Move(temp, path, true);
+            await cacheWriteGate.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    byte[] plain = JsonSerializer.SerializeToUtf8Bytes(new CachedChannels(savedAt, snapshot));
+                    byte[] encrypted = ProtectedData.Protect(plain, null, DataProtectionScope.CurrentUser);
+                    string temp = path + ".tmp";
+                    File.WriteAllBytes(temp, encrypted);
+                    File.Move(temp, path, true);
+                });
+            }
+            finally { cacheWriteGate.Release(); }
         }
-        catch (Exception) { status.Text = "Kanal önbelleği kaydedilemedi."; }
+        catch (Exception) { if (!IsDisposed) status.Text = "Kanal önbelleği kaydedilemedi."; }
     }
 
     private bool TryLoadChannelCache(out List<Channel> items, out DateTime savedAt)
@@ -183,3 +195,4 @@ internal sealed partial class PlayerForm
         catch (Exception e) { return "kontrol edilemedi: " + e.GetType().Name; }
     }
 }
+
