@@ -26,15 +26,17 @@ internal sealed partial class PlayerForm
             Font = new Font("Segoe UI", 20, FontStyle.Bold) };
         layout.Controls.Add(title, 0, 0);
         var type = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
+        type.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         type.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
         type.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         type.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         type.Controls.Add(new Label { Text = "Kaynak türü", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
         source.Dock = DockStyle.Fill; type.Controls.Add(source, 1, 0);
-        var pick = Button("Dosya seç", (_, _) => PickFile()); pick.Dock = DockStyle.Fill; type.Controls.Add(pick, 2, 0);
+        var pick = Button("Dosya seç", (_, _) => PickFile()); pick.AutoSize = false; pick.Dock = DockStyle.Fill; type.Controls.Add(pick, 2, 0);
         layout.Controls.Add(type, 0, 1);
         layout.Controls.Add(SourceField("Adres veya M3U dosyası", address), 0, 2);
         var credentials = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+        credentials.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         credentials.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         credentials.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         credentials.Controls.Add(SourceField("Kullanıcı adı / MAC (portal için)", username), 0, 0);
