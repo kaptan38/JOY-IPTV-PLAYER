@@ -78,6 +78,20 @@ internal static class SourceRegression
             mode.SelectedIndex = 2; Call(form, "NormalizeSourceInput");
             Check(mode.SelectedIndex == 2, "FAIL: Xtream mode was overwritten by URL detection.");
             Console.WriteLine("PASS: Xtream and Stalker modes are preserved.");
+            mode.SelectedIndex = 1; address.Text = "http://127.0.0.1/performance.m3u";
+            var text = new StringBuilder("#EXTM3U\n");
+            for (int i = 0; i < 60000; i++) text.Append($"#EXTINF:-1 group-title=\"Test\",Channel {i}\nhttp://127.0.0.1/live/{i}.ts\n");
+            var parse = form.GetType().GetMethod("ParseM3u", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var catalog = parse.Invoke(null, new object?[] { text.ToString(), null })!;
+            int ticks = 0;
+            using var heartbeat = new System.Windows.Forms.Timer { Interval = 10 };
+            heartbeat.Tick += (_, _) => ticks++;
+            heartbeat.Start();
+            var cache = Call(form, "SaveChannelCache", catalog) as Task ?? Task.CompletedTask;
+            while (!cache.IsCompleted) { Application.DoEvents(); Thread.Sleep(2); }
+            cache.GetAwaiter().GetResult(); heartbeat.Stop();
+            Check(ticks > 0, "FAIL: Saving a 60,000-channel cache blocks the UI heartbeat.");
+            Console.WriteLine($"PASS: 60,000-channel cache saved while UI stayed responsive ({ticks} ticks).");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
