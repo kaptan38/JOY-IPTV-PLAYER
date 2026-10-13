@@ -92,6 +92,13 @@ internal static class SourceRegression
             cache.GetAwaiter().GetResult(); heartbeat.Stop();
             Check(ticks > 0, "FAIL: Saving a 60,000-channel cache blocks the UI heartbeat.");
             Console.WriteLine($"PASS: 60,000-channel cache saved while UI stayed responsive ({ticks} ticks).");
+            var readCache = (Task)Call(form, "ReadChannelCacheAsync")!;
+            while (!readCache.IsCompleted) { Application.DoEvents(); Thread.Sleep(2); }
+            readCache.GetAwaiter().GetResult();
+            var cachedResult = readCache.GetType().GetProperty("Result")!.GetValue(readCache)!;
+            var cachedItems = (IList)cachedResult.GetType().GetField("Item1")!.GetValue(cachedResult)!;
+            Check(cachedItems.Count == 60000, "FAIL: Cached catalog did not retain every channel.");
+            Console.WriteLine("PASS: Encrypted 60,000-channel cache restores all entries.");
             var parsedChannels = (IList)catalog;
             string largeFile = Path.Combine(Path.GetTempPath(), "JOY large " + Guid.NewGuid().ToString("N") + ".m3u");
             try

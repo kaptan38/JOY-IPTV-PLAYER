@@ -52,18 +52,21 @@ internal sealed partial class PlayerForm
         catch (Exception) { if (!IsDisposed) status.Text = "Kanal önbelleği kaydedilemedi."; }
     }
 
-    private bool TryLoadChannelCache(out List<Channel> items, out DateTime savedAt)
+    private Task<(List<Channel> Items, DateTime SavedAt)> ReadChannelCacheAsync()
     {
-        items = new(); savedAt = default;
-        try
+        string path = CacheFile;
+        return Task.Run(() =>
         {
-            byte[] encrypted = File.ReadAllBytes(CacheFile);
-            byte[] plain = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
-            var cached = JsonSerializer.Deserialize<CachedChannels>(plain);
-            if (cached == null || cached.Items.Count == 0) return false;
-            items = cached.Items; savedAt = cached.SavedAt; return true;
-        }
-        catch { return false; }
+            try
+            {
+                byte[] encrypted = File.ReadAllBytes(path);
+                byte[] plain = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+                var cached = JsonSerializer.Deserialize<CachedChannels>(plain);
+                if (cached != null && cached.Items.Count > 0) return (cached.Items, cached.SavedAt);
+            }
+            catch { /* A missing or damaged cache never prevents network loading. */ }
+            return (new List<Channel>(), default(DateTime));
+        });
     }
 
     private void LoadWatchHistory()

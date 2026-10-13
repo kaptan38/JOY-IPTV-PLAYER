@@ -204,7 +204,16 @@ internal sealed partial class PlayerForm : Form
         {
             NormalizeSourceInput();
             SetCinemaLoading(true);
-            status.Text = "Kaynak yükleniyor..."; UseWaitCursor = true;
+            status.Text = "Kaynak yükleniyor...";
+            var previous = await ReadChannelCacheAsync();
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (previous.Items.Count > 0)
+            {
+                activeSource = source.SelectedIndex; offlineCache = true;
+                libraryPositions.Clear(); cinemaScroll.Clear();
+                ReplaceLoadedCatalog(previous.Items);
+                status.Text = $"Kayıtlı liste hazır: {previous.Items.Count:N0} yayın. Sunucudan yenileniyor...";
+            }
             currentStarted = ""; currentExpires = "";
             List<Channel> loaded = source.SelectedIndex switch
             {
@@ -223,6 +232,7 @@ internal sealed partial class PlayerForm : Form
             if (loaded.Count > 0) _ = SaveChannelCache(loaded);
             status.Text = $"{channels.Count} öğe yüklendi. Oynatmak için çift tıklayın." +
                 (activeSource == 3 && stalkerCatalogNote.Length > 0 ? " " + stalkerCatalogNote : "");
+            sourceCloseRequested = sourceDialog != null;
             if (activeSource == 3)
             {
                 status.Text = $"{channels.Count} canlı yayın hazır. Film ve diziler arka planda yükleniyor...";
@@ -233,8 +243,10 @@ internal sealed partial class PlayerForm : Form
         { status.Text = "Yükleme iptal edildi."; }
         catch (Exception e)
         {
-            if ((e is HttpRequestException or TaskCanceledException or TimeoutException) &&
-                TryLoadChannelCache(out var cached, out var cachedAt))
+            var fallback = e is HttpRequestException or TaskCanceledException or TimeoutException
+                ? await ReadChannelCacheAsync() : (new List<Channel>(), default(DateTime));
+            var (cached, cachedAt) = fallback;
+            if (cached.Count > 0)
             {
                 activeSource = source.SelectedIndex;
                 offlineCache = true;
