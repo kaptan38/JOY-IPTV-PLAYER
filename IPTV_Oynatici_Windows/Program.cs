@@ -111,6 +111,7 @@ internal sealed partial class PlayerForm : Form
         source.Items.AddRange(new object[] { "M3U dosya", "M3U URL", "Xtream", "Stalker" }); source.SelectedIndex = 0;
         source.SelectedIndexChanged += (_, _) => UpdateFields(); UpdateFields();
         LoadFavorites();
+        player = new MediaPlayer(libvlc); video.MediaPlayer = player;
         top = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 170, Padding = new Padding(10), AutoScroll = true,
             BackColor = Color.FromArgb(27, 37, 51) };
         top.Controls.Add(source); top.Controls.Add(address); top.Controls.Add(username); top.Controls.Add(password);
@@ -138,7 +139,6 @@ internal sealed partial class PlayerForm : Form
         favoritesOnly.CheckedChanged += (_, _) => ApplyFilter();
         list.DoubleClick += async (_, _) => await PlaySelectedAsync();
         list.KeyDown += async (_, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; await PlaySelectedAsync(); } };
-        player = new MediaPlayer(libvlc); video.MediaPlayer = player;
         video.DoubleClick += (_, _) => ToggleFullscreen();
         var videoMenu = new ContextMenuStrip();
         videoMenu.Items.Add("Tam ekran / çık (F11)", null, (_, _) => ToggleFullscreen());

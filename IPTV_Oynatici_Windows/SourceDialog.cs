@@ -134,7 +134,7 @@ internal sealed partial class PlayerForm
     {
         foreach (Control control in parent.Controls)
         {
-            if (control is Button or TextBox or ComboBox) control.Enabled = enabled;
+            if (control is System.Windows.Forms.Button or TextBox or ComboBox) control.Enabled = enabled;
             else SetSourceInputsEnabled(control, enabled);
         }
     }
