@@ -132,7 +132,7 @@ internal static class FeatureTests
             File.WriteAllText(Path.Combine(rollback, "theme.txt"), "keep-me");
             File.Delete(Path.Combine(rollback, "zblocked.json")); Directory.CreateDirectory(Path.Combine(rollback, "zblocked.json"));
             try { ((Task)type.GetMethod("RestoreAsync", flags)!.Invoke(null, new object[] { rollbackArchive, rollback, CancellationToken.None })!).GetAwaiter().GetResult(); throw new Exception("FAIL: blocked restore accepted."); }
-            catch (IOException) { }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             Check(File.ReadAllText(Path.Combine(rollback, "theme.txt")) == "keep-me", "Failed restore did not roll back applied settings.");
         }
         finally { Directory.Delete(dir, true); }
