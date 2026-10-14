@@ -134,7 +134,7 @@ internal sealed partial class PlayerForm : Form
         top.Controls.Add(volume);
         left = new Panel { Dock = DockStyle.Left, Width = 340, BackColor = Color.FromArgb(24, 31, 42), Padding = new Padding(10) };
         left.Controls.Add(list); left.Controls.Add(filter); left.Controls.Add(groups); left.Controls.Add(favoritesOnly);
-        filter.TextChanged += (_, _) => ApplyFilter();
+        filter.TextChanged += (_, _) => { if (!updatingLibrary) libraryFilterTask = RequestLibraryFilterAsync(true); };
         groups.SelectedIndexChanged += (_, _) => ApplyFilter();
         favoritesOnly.CheckedChanged += (_, _) => ApplyFilter();
         list.ItemActivated += async (_, _) => await PlaySelectedAsync();
@@ -166,7 +166,7 @@ internal sealed partial class PlayerForm : Form
         SetupCinemaShell();
         Shown += async (_, _) => await RestoreLastSourceAsync();
         FormClosing += (_, _) => { SavePlaybackPosition(); Application.RemoveMessageFilter(fullscreenKeys);
-            CancelSubtitleJob(); scheduleTimer.Stop(); scheduleTimer.Dispose(); StopAllRecordings(); playbackTimer.Stop(); player.Stop(); player.Dispose(); libvlc.Dispose(); http.Dispose(); epgHttp.Dispose(); stalkerRequestGate.Dispose(); };
+            libraryFilterCancellation?.Cancel(); StopLiveRecovery(); CancelSubtitleJob(); scheduleTimer.Stop(); scheduleTimer.Dispose(); StopAllRecordings(); playbackTimer.Stop(); player.Stop(); player.Dispose(); libvlc.Dispose(); http.Dispose(); epgHttp.Dispose(); stalkerRequestGate.Dispose(); };
     }
 
     private static Button Button(string caption, EventHandler action)
@@ -194,6 +194,7 @@ internal sealed partial class PlayerForm : Form
     private async Task LoadAsync()
     {
         if (loadingSource) return;
+        libraryFilterCancellation?.Cancel(); ++libraryFilterGeneration; StopLiveRecovery();
         loadingSource = true;
         using var cancellation = new CancellationTokenSource();
         sourceLoadCancellation = cancellation;
@@ -601,24 +602,6 @@ internal sealed partial class PlayerForm : Form
             ? property.ToString() : "";
     }
 
-    private void ApplyFilter()
-    {
-        if (updatingLibrary) return;
-        Channel? previousSelection = list.SelectedIndex >= 0 && list.SelectedIndex < visible.Count ? visible[list.SelectedIndex] : null;
-        string q = filter.Text.Trim();
-        string group = groups.SelectedItem as string ?? "Tümü";
-        string kind = kinds.SelectedItem as string ?? "Canlı TV";
-        var candidate = channels.Where(c => (kind is "Tümü" or "Önerilen" || c.Kind == kind) &&
-            (group == "Tümü" || group == c.Kind + " / " + c.Group) &&
-            (!favoritesOnly.Checked || favorites.Contains(FavoriteKey(c))));
-        if (kind == "Önerilen") candidate = RankRecommendations(candidate);
-        visible = q.Length == 0 ? candidate.ToList() : candidate.Select(c => (Channel: c, Score: SmartSearchScore(c, q)))
-            .Where(x => x.Score >= 0).OrderByDescending(x => x.Score).Select(x => x.Channel).ToList();
-        list.SetItems(visible, previousSelection == null ? -1 : visible.IndexOf(previousSelection));
-        UpdateVisualSummary();
-        RefreshCinemaCatalog();
-    }
-
     private void RefreshGroups()
     {
         if (updatingLibrary) return;
@@ -639,9 +622,7 @@ internal sealed partial class PlayerForm : Form
 
     private string FavoriteKey(Channel c)
     {
-        string identity = activeSource + "|" + (activeSource == 3 ? stalkerBase : address.Text.Trim()) + "|" + c.Kind + "|" + c.Name + "|" +
-            (c.Command ?? c.Url);
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
+        return LibrarySearch.FavoriteId(FavoritePrefix, c);
     }
 
     private void LoadFavorites()

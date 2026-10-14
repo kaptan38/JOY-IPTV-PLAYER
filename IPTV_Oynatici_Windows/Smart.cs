@@ -128,7 +128,7 @@ internal sealed partial class PlayerForm
         return builder.ToString();
     }
 
-    private static int SmartSearchScore(Channel channel, string query)
+    internal static int SmartSearchScore(Channel channel, string query)
     {
         string name = NormalizeSearch(channel.Name), group = NormalizeSearch(channel.Group), wanted = NormalizeSearch(query);
         if (name == wanted) return 100;
@@ -200,4 +200,5 @@ internal sealed partial class PlayerForm
         catch (Exception e) { return "kontrol edilemedi: " + e.GetType().Name; }
     }
 }
+
 

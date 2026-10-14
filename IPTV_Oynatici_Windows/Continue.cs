@@ -94,6 +94,7 @@ internal sealed partial class PlayerForm
             }
             kinds.SelectedItem = item.Kind; groups.SelectedIndex = 0;
             favoritesOnly.Checked = false; filter.Clear();
+            await RequestLibraryFilterAsync(false);
             int index = visible.FindIndex(c => ReferenceEquals(c, existing));
             if (index < 0) return;
             list.SelectedIndex = index;
@@ -104,3 +105,4 @@ internal sealed partial class PlayerForm
         Render(); window.ShowDialog(this);
     }
 }
+

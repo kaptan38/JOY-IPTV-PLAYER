@@ -114,23 +114,23 @@ internal sealed partial class PlayerForm
         Show(); Application.DoEvents();
         foreach (string kind in new[] { "Canlı TV", "Film", "Dizi" })
         {
-            kinds.SelectedItem = kind; RefreshGroups(); Application.DoEvents();
+            kinds.SelectedItem = kind; RefreshGroups(); WaitForLibraryFilterForVerification(); Application.DoEvents();
             if (visible.Count == 0 || cinemaMainHost == null || cinemaMainHost.Width < 250 || cinemaMainHost.Height < 100)
                 throw new InvalidOperationException("Menü yerleşim kontrolü başarısız: " + kind);
             if (kind != "Canlı TV" && (cinemaGallery == null || !cinemaGallery.Visible))
                 throw new InvalidOperationException("Afiş galerisi açılmadı: " + kind);
         }
         kinds.SelectedItem = "Film"; RefreshGroups();
-        filter.Text = "Son Yolculuk";
+        filter.Text = "Son Yolculuk"; WaitForLibraryFilterForVerification();
         if (visible.Count != 1) throw new InvalidOperationException("Galeri arama kontrolü başarısız.");
-        filter.Clear();
+        filter.Clear(); WaitForLibraryFilterForVerification();
         ToggleFullscreen();
         if (video.Parent != this || cinemaRoot!.Visible) throw new InvalidOperationException("Tam ekran kontrolü başarısız.");
         ToggleFullscreen();
         if (video.Parent != cinemaVideoHost || !cinemaRoot!.Visible) throw new InvalidOperationException("Tam ekran dönüş kontrolü başarısız.");
-        kinds.SelectedItem = "Canlı TV"; Application.DoEvents(); ToggleFullscreen(); ToggleFullscreen(); Application.DoEvents();
+        kinds.SelectedItem = "Canlı TV"; WaitForLibraryFilterForVerification(); Application.DoEvents(); ToggleFullscreen(); ToggleFullscreen(); Application.DoEvents();
         if (video.Left < left.Right) throw new InvalidOperationException("Kanal listesi video alanını örtüyor.");
-        kinds.SelectedItem = "Film"; RefreshGroups(); list.SelectedIndex = 0;
+        kinds.SelectedItem = "Film"; RefreshGroups(); WaitForLibraryFilterForVerification(); list.SelectedIndex = 0;
         status.Text = "Tasarım önizlemesi • örnek içerik • yayın oynatılmıyor";
         // Render the application controls at a fixed viewport independently of
         // the hosted runner's small desktop working area.
@@ -156,7 +156,7 @@ internal sealed partial class PlayerForm
             sourceWindow.Close();
         }
         if (address.IsDisposed || source.IsDisposed) throw new InvalidOperationException("Kaynak alanları pencere kapatılınca silindi.");
-        channels.Clear(); kinds.SelectedItem = "Tümü"; RefreshGroups(); Application.DoEvents();
+        channels.Clear(); kinds.SelectedItem = "Tümü"; RefreshGroups(); WaitForLibraryFilterForVerification(); Application.DoEvents();
         if (cinemaEmpty == null || !cinemaEmpty.Visible || cinemaPlayButton!.Enabled)
             throw new InvalidOperationException("Boş ana sayfa kontrolü başarısız.");
         foreach (int theme in new[] { 9, 10, 11, 12, 13 }) themeBox.SelectedIndex = theme;

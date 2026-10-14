@@ -24,13 +24,6 @@ internal sealed partial class PlayerForm
             currentLibraryKind = nextKind;
         }
         RefreshGroups();
-        if (libraryPositions.TryGetValue(nextKind, out var position))
-        {
-            if (groups.Items.Contains(position.Group)) groups.SelectedItem = position.Group;
-            int index = position.Selected == null ? -1 : visible.IndexOf(position.Selected);
-            if (index >= 0) list.SelectedIndex = index;
-            if (list.Count > 0) list.TopIndex = Math.Clamp(position.Top, 0, list.Count - 1);
-        }
         UpdateLibrarySelection();
         if (cinemaGallery != null) cinemaGallery.ScrollOffset = cinemaScroll.GetValueOrDefault(nextKind);
     }

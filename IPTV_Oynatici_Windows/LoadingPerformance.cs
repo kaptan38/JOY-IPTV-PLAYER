@@ -36,9 +36,11 @@ internal sealed partial class PlayerForm
 
     private void ReplaceLoadedCatalog(List<Channel> loaded)
     {
+        libraryCatalogVersion++; categoryPositions.Clear(); displayedCategory = "";
         updatingLibrary = true;
         try { channels.Clear(); channels.AddRange(loaded); OnChannelsLoaded(); currentLibraryKind = kinds.SelectedItem as string ?? "Canlı TV"; }
         finally { updatingLibrary = false; }
         RefreshGroups();
     }
 }
+
