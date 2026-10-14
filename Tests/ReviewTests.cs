@@ -60,6 +60,16 @@ internal static class ReviewTests
             ((IDictionary)Field(f, "continueItems")).Clear(); ((IDictionary)Field(f, "resumePositions")).Clear(); Call(f, "LoadResumePositions"); Call(f, "LoadContinueItems");
             user.Text = "00:1A:79:00:00:01"; Call(f, "PrepareResume", movie); Check((long)Field(f, "pendingResume") == 45000L, "First resume lost on reload.");
             user.Text = "00:1A:79:00:00:02"; Call(f, "PrepareResume", movie); Check((long)Field(f, "pendingResume") == 90000L, "Second resume lost on reload.");
+            var entries = (IDictionary)Field(f, "continueItems"); var positions = (IDictionary)Field(f, "resumePositions");
+            entries.Clear(); positions.Clear();
+            string legacy = (string)Call(f, "FavoriteKey", movie)!;
+            string sourceKey = (string)Field(f, "playingSourceKey");
+            entries[legacy] = a.GetType("JoyIptv.ContinueEntry")!.GetConstructors()[0].Invoke(new object[] { legacy, sourceKey, movie, DateTime.UtcNow });
+            positions[legacy] = 123000L; Call(f, "SaveContinueItems"); Call(f, "SaveResumePositions");
+            entries.Clear(); positions.Clear(); Call(f, "LoadResumePositions"); Call(f, "LoadContinueItems"); Call(f, "PrepareResume", movie);
+            Check((long)Field(f, "pendingResume") == 123000L, "Legacy continue position was not migrated.");
+            entries.Clear(); positions.Clear(); Call(f, "LoadResumePositions"); Call(f, "LoadContinueItems"); Call(f, "PrepareResume", movie);
+            Check((long)Field(f, "pendingResume") == 123000L, "Migrated position changed on second reload.");
             Console.WriteLine("PASS: source-qualified history and resume persist independently; favorites remain compatible.");
         }
         finally { Wait((Task)Field(f, "recentSaveTask")); Directory.Delete(root, true); }

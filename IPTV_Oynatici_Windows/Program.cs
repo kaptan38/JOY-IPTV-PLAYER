@@ -190,7 +190,7 @@ internal sealed partial class PlayerForm : Form
     private async Task LoadAsync()
     {
         if (loadingSource || settingsOperation) return;
-        libraryFilterCancellation?.Cancel(); ++libraryFilterGeneration; StopLiveRecovery();
+        libraryFilterCancellation?.Cancel(); ++libraryFilterGeneration; StopPlayback();
         loadingSource = true;
         using var cancellation = new CancellationTokenSource();
         sourceLoadCancellation = cancellation;

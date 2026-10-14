@@ -4,7 +4,10 @@ using System.Text.Json;
 
 namespace JoyIptv;
 
-internal sealed record ContinueEntry(string Key, string SourceKey, Channel Item, DateTime Watched);
+internal sealed record ContinueEntry(string Key, string SourceKey, Channel Item, DateTime Watched)
+{
+    public bool SourceQualified { get; init; }
+}
 
 internal sealed partial class PlayerForm
 {
@@ -17,8 +20,20 @@ internal sealed partial class PlayerForm
         {
             if (!File.Exists(ContinueFile)) return;
             byte[] plain = ProtectedData.Unprotect(File.ReadAllBytes(ContinueFile), null, DataProtectionScope.CurrentUser);
+            bool migrated = false;
             foreach (var item in JsonSerializer.Deserialize<List<ContinueEntry>>(plain) ?? new())
-                if (item.Key.Length > 0 && IsResumeContent(item.Item)) continueItems[item.Key] = item;
+            {
+                if (item.Key.Length == 0 || !IsResumeContent(item.Item)) continue;
+                var entry = item;
+                if (!entry.SourceQualified)
+                {
+                    string key = SourceHistoryKey(entry.SourceKey, entry.Key);
+                    if (resumePositions.TryGetValue(entry.Key, out long position)) resumePositions.TryAdd(key, position);
+                    entry = entry with { Key = key, SourceQualified = true }; migrated = true;
+                }
+                continueItems[entry.Key] = entry;
+            }
+            if (migrated) { SaveContinueItems(); SaveResumePositions(); }
         }
         catch { status.Text = "İzlemeye devam listesi okunamadı."; }
     }
@@ -39,7 +54,7 @@ internal sealed partial class PlayerForm
 
     private void RememberContinue(string key, Channel item)
     {
-        continueItems[key] = new ContinueEntry(key, playingSourceKey, item, DateTime.UtcNow);
+        continueItems[key] = new ContinueEntry(key, playingSourceKey, item, DateTime.UtcNow) { SourceQualified = true };
         if (continueItems.Count > 100)
         {
             foreach (var old in continueItems.Values.OrderByDescending(x => x.Watched).Skip(100).ToArray())

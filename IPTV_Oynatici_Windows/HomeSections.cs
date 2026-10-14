@@ -17,20 +17,26 @@ internal sealed partial class PlayerForm
     private readonly Dictionary<string, Button> homeButtons = new();
     private FlowLayoutPanel? cinemaHomeBar;
     private string RecentFile => Path.Combine(settingsDir, "son_izlenenler.dat");
+    private static string SourceHistoryKey(string sourceKey, string favoriteKey) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceKey + "|" + favoriteKey)));
     private void LoadRecentItems()
     {
         try
         {
             if (!File.Exists(RecentFile)) return;
             var plain = ProtectedData.Unprotect(File.ReadAllBytes(RecentFile), null, DataProtectionScope.CurrentUser);
-            foreach (var entry in JsonSerializer.Deserialize<List<ContinueEntry>>(plain) ?? new()) recentItems[entry.Key] = entry;
+            foreach (var item in JsonSerializer.Deserialize<List<ContinueEntry>>(plain) ?? new())
+            {
+                var entry = item.SourceQualified ? item : item with { Key = SourceHistoryKey(item.SourceKey, item.Key), SourceQualified = true };
+                recentItems[entry.Key] = entry;
+            }
         }
         catch { /* Missing history leaves the home sections empty. */ }
     }
     private void RememberRecent(Channel item)
     {
-        string key = FavoriteKey(item);
-        recentItems[key] = new ContinueEntry(key, playingSourceKey, item, DateTime.UtcNow);
+        string key = SourceHistoryKey(playingSourceKey, FavoriteKey(item));
+        recentItems[key] = new ContinueEntry(key, playingSourceKey, item, DateTime.UtcNow) { SourceQualified = true };
         foreach (var old in recentItems.Values.OrderByDescending(x => x.Watched).Skip(100).ToArray()) recentItems.Remove(old.Key);
         var snapshot = recentItems.Values.ToArray(); recentSaveTask = SaveRecentItemsAsync(snapshot);
     }

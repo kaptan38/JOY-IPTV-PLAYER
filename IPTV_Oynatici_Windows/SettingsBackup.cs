@@ -113,17 +113,28 @@ internal static class SettingsBackup
                 var data = Validate(archivePath, token); var before = Snapshot(settingsDirectory, token);
                 string previous = Path.Combine(settingsDirectory, "yedekler", "restore_oncesi_" + DateTime.UtcNow.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..8] + ".joybackup");
                 Export(before, previous, token);
+                var changed = new List<string>();
                 try
                 {
-                    foreach (var file in data) { token.ThrowIfCancellationRequested(); AtomicWrite(Path.Combine(settingsDirectory, file.Key), file.Value); }
+                    foreach (var file in data)
+                    { token.ThrowIfCancellationRequested(); AtomicWrite(Path.Combine(settingsDirectory, file.Key), file.Value); changed.Add(file.Key); }
                     foreach (string name in before.Keys.Except(data.Keys, StringComparer.OrdinalIgnoreCase))
-                    { token.ThrowIfCancellationRequested(); File.Delete(Path.Combine(settingsDirectory, name)); }
+                    { token.ThrowIfCancellationRequested(); File.Delete(Path.Combine(settingsDirectory, name)); changed.Add(name); }
                 }
-                catch
+                catch (Exception failure)
                 {
-                    foreach (var file in before) AtomicWrite(Path.Combine(settingsDirectory, file.Key), file.Value);
-                    foreach (string name in data.Keys.Except(before.Keys, StringComparer.OrdinalIgnoreCase))
-                        if (File.Exists(Path.Combine(settingsDirectory, name))) File.Delete(Path.Combine(settingsDirectory, name));
+                    var errors = new List<Exception> { failure };
+                    foreach (string name in changed.AsEnumerable().Reverse())
+                    {
+                        try
+                        {
+                            string path = Path.Combine(settingsDirectory, name);
+                            if (before.TryGetValue(name, out var bytes)) AtomicWrite(path, bytes);
+                            else if (File.Exists(path)) File.Delete(path);
+                        }
+                        catch (Exception rollbackFailure) { errors.Add(rollbackFailure); }
+                    }
+                    if (errors.Count > 1) throw new IOException("Geri alma tamamlanamadı. Önceki ayar yedeği: " + previous, new AggregateException(errors));
                     throw;
                 }
                 return previous;

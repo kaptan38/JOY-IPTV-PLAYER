@@ -39,7 +39,7 @@ internal sealed partial class PlayerForm
 
     private void ScheduleLiveRecovery()
     {
-        if (IsDisposed || recoveryPending) return;
+        if (IsDisposed || recoveryPending || playbackOperations > 0 || loadingSource) return;
         var item = playingChannel;
         if (item == null) return;
         if (item.Kind != "Canlı TV") return;
@@ -58,7 +58,7 @@ internal sealed partial class PlayerForm
     private void QueueLiveRecovery()
     {
         int generation = recoveryGeneration; var item = playingChannel;
-        if (!IsHandleCreated || IsDisposed || item == null) return;
+        if (!IsHandleCreated || IsDisposed || item == null || playbackOperations > 0 || loadingSource) return;
         try
         {
             BeginInvoke(() =>
@@ -92,7 +92,7 @@ internal sealed partial class PlayerForm
 
     private void MonitorLivePlayback()
     {
-        if (playingChannel?.Kind != "Canlı TV" || recoveryPending)
+        if (playingChannel?.Kind != "Canlı TV" || recoveryPending || playbackOperations > 0 || loadingSource)
         { bufferingSince = DateTime.MinValue; return; }
         string state = player.State.ToString();
         if (state is not ("Buffering" or "Opening"))

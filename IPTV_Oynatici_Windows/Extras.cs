@@ -229,7 +229,7 @@ internal sealed partial class PlayerForm
 
     private void PrepareResume(Channel item)
     {
-        playingKey = FavoriteKey(item); playingSourceKey = CacheKey(); pendingResume = 0;
+        playingSourceKey = CacheKey(); playingKey = SourceHistoryKey(playingSourceKey, FavoriteKey(item)); pendingResume = 0;
         if (IsResumeContent(item)) resumePositions.TryGetValue(playingKey, out pendingResume);
         if (pendingResume > 30000) status.Text = "Kaldığınız yer hazırlanıyor...";
     }

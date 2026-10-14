@@ -24,6 +24,8 @@ internal sealed partial class PlayerForm
             currentLibraryKind = nextKind;
         }
         RefreshGroups();
+        if (libraryPositions.TryGetValue(nextKind, out var saved) && groups.Items.Contains(saved.Group))
+            groups.SelectedItem = saved.Group;
         UpdateLibrarySelection();
         if (cinemaGallery != null) cinemaGallery.ScrollOffset = cinemaScroll.GetValueOrDefault(nextKind);
     }
@@ -186,6 +188,7 @@ internal sealed partial class PlayerForm
         SavePlaybackPosition();
         StopLiveRecovery();
         player.Stop();
+        currentStreamUrl = "";
         status.Text = "Durduruldu.";
         cinemaPlayingView = false; UpdateCinemaMode();
     }
