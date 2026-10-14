@@ -77,7 +77,7 @@ internal sealed partial class PlayerForm
             { if (!allowEpisode || entry.Item.Kind != "Bölüm") return null; current = entry.Item; }
             return new HomeItem(current, sourceKey, entry.Watched, positions.GetValueOrDefault(entry.Key));
         }
-        var last = recent.Concat(continues).OrderByDescending(x => x.Watched).DistinctBy(x => x.Key)
+        var last = recent.Concat(continues).Where(x => x.SourceKey == sourceKey).OrderByDescending(x => x.Watched).DistinctBy(x => x.Key)
             .Select(x => Match(x, true)).Where(x => x != null).Cast<HomeItem>().Take(30).ToArray();
         var resume = continues.Where(x => positions.GetValueOrDefault(x.Key) > 0).OrderByDescending(x => x.Watched)
             .Select(x => Match(x, true)).Where(x => x != null).Cast<HomeItem>().Take(100).ToArray();
