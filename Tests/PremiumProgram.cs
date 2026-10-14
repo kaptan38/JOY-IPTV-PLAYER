@@ -52,6 +52,7 @@ internal static class PremiumProgram
             Check((int)control.GetType().GetMethod("IndexFromPoint", props)!.Invoke(control, new object[] { new Point(10, 10) })! == -1,
                 "Empty area identified as a channel.");
             Console.WriteLine("PASS: 100,000 channels retain selection and draw only visible rows.");
+            SearchTests.Run(assembly);
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
