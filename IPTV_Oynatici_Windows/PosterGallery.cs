@@ -14,9 +14,9 @@ internal sealed class PosterGallery : ScrollableControl
         { Timeout = TimeSpan.FromSeconds(10) };
     private readonly SemaphoreSlim downloads = new(4);
     private readonly CancellationTokenSource lifetime = new();
-    private readonly Font titleFont = new("Segoe UI", 10, FontStyle.Bold);
-    private readonly Font smallFont = new("Segoe UI", 9);
-    private readonly Font symbolFont = new("Segoe UI", 30, FontStyle.Bold);
+    private Font titleFont = new("Segoe UI", 10, FontStyle.Bold);
+    private Font smallFont = new("Segoe UI", 9);
+    private Font symbolFont = new("Segoe UI", 30, FontStyle.Bold);
     private int hoverIndex = -1;
     private readonly PosterDiskCache disk = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JOY_IPTV_Player", "afis_onbellek"));
     private readonly HashSet<string> visibleUrls = new(StringComparer.Ordinal);
@@ -27,11 +27,20 @@ internal sealed class PosterGallery : ScrollableControl
     internal Color Muted { get; set; } = Color.FromArgb(170, 190, 208);
     internal int SelectedIndex { get; private set; } = -1;
     internal int ScrollOffset { get => -AutoScrollPosition.Y; set => AutoScrollPosition = new Point(0, Math.Max(0, value)); }
+    private float previewScale = 1f;
+    internal void SetPreviewScale(float value)
+    {
+        previewScale = value;
+        titleFont.Dispose(); smallFont.Dispose(); symbolFont.Dispose();
+        titleFont = new Font("Segoe UI", 10 * value, FontStyle.Bold);
+        smallFont = new Font("Segoe UI", 9 * value); symbolFont = new Font("Segoe UI", 30 * value, FontStyle.Bold);
+        UpdateGrid();
+    }
     private PosterSize posterSize = JoyIptv.PosterSize.Medium;
     internal PosterSize PosterSize
     { get => posterSize; set { posterSize = value; UpdateGrid(); EnsureSelectedVisible(); Invalidate(); } }
-    private int CardWidth => (int)((posterSize switch { JoyIptv.PosterSize.Small => 125, JoyIptv.PosterSize.Large => 205, _ => 165 }) * DeviceDpi / 96d);
-    private int CardHeight => (int)(CardWidth * 1.38) + (int)(55 * DeviceDpi / 96d);
+    private int CardWidth => (int)((posterSize switch { JoyIptv.PosterSize.Small => 125, JoyIptv.PosterSize.Large => 205, _ => 165 }) * DeviceDpi / 96d * previewScale);
+    private int CardHeight => (int)(CardWidth * 1.38) + (int)(55 * DeviceDpi / 96d * previewScale);
     private int Columns => Math.Max(1, (ClientSize.Width - 2) / (CardWidth + 18));
     private void UpdateGrid() => AutoScrollMinSize = new Size(0, ((items.Count + Columns - 1) / Columns) * CardHeight + 16);
     private void EnsureSelectedVisible()

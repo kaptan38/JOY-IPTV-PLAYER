@@ -40,6 +40,21 @@ internal static class SearchTests
         var deadline = DateTime.UtcNow.AddMilliseconds(300);
         while (DateTime.UtcNow < deadline) { Application.DoEvents(); Thread.Sleep(2); }
         Check(((IList)Field(form, "visible")).Count == 1, "Previous source search replaced new catalog.");
+        catalog.Add(ctor.Invoke(new object?[] { "Aardvark", "Diğer", "http://127.0.0.1/new2", "Canlı TV", null, 0, 1, "", "", "" }));
+        form.GetType().GetMethod("RefreshGroups", P)!.Invoke(form, null);
+        Wait(() => ((IList)Field(form, "visible")).Count == 2);
+        result = (IList)Field(form, "visible");
+        Check(result[0]!.GetType().GetProperty("Name")!.GetValue(result[0])?.ToString() == "Yeni Kaynak", "Empty search changed provider order.");
+        var list = (Control)Field(form, "list");
+        var selection = list.GetType().GetProperty("SelectedIndex")!; selection.SetValue(list, 1);
+        var groups = (ComboBox)Field(form, "groups"); groups.SelectedItem = "Canlı TV / Yeni";
+        Wait(() => ((IList)Field(form, "visible")).Count == 1);
+        groups.SelectedItem = "Tümü"; Wait(() => ((IList)Field(form, "visible")).Count == 2);
+        Check((int)selection.GetValue(list)! == 1, "Category return lost selected channel.");
+        _ = form.Handle; filter.Text = "Aardvark";
+        var pending = (Task)Field(form, "libraryFilterTask"); form.Close();
+        Wait(() => pending.IsCompleted); pending.GetAwaiter().GetResult();
+        Check(form.IsDisposed, "Closing during search kept form alive.");
         Console.WriteLine("PASS: background search stays responsive; latest query/source wins.");
     }
 }

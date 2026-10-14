@@ -50,6 +50,7 @@ jobs:
           $exe = Resolve-Path 'IPTV_Oynatici_Windows/yayin/JOY_IPTV_Player.exe'
           $bytes = [IO.File]::ReadAllBytes($exe)
           if ($bytes.Length -lt 2 -or $bytes[0] -ne 77 -or $bytes[1] -ne 90) { throw 'Gecersiz Windows EXE.' }
+          if ([Diagnostics.FileVersionInfo]::GetVersionInfo($exe).FileVersion -ne '2.0.0.0') { throw 'Unexpected release version.' }
           if (Test-Path 'IPTV_Oynatici_Windows/yayin/libvlc') { throw 'Paket tek EXE olmali.' }
           $test = Start-Process -FilePath $exe -ArgumentList '--verify-native' -PassThru
           if (-not $test.WaitForExit(120000)) { $test.Kill(); throw 'VLC motor testi zaman asimi.' }
@@ -61,12 +62,17 @@ jobs:
         shell: pwsh
         run: |
           $exe = Resolve-Path 'IPTV_Oynatici_Windows/yayin/JOY_IPTV_Player.exe'
-          $image = Join-Path $env:GITHUB_WORKSPACE 'JOY_IPTV_Menu_Onizleme.png'
-          $log = Join-Path $env:GITHUB_WORKSPACE 'ui-test-errors.txt'
-          $test = Start-Process -FilePath $exe -ArgumentList @('--verify-ui', $image) -RedirectStandardError $log -PassThru
-          if (-not $test.WaitForExit(120000)) { $test.Kill(); throw 'Arayuz testi zaman asimi.' }
-          if ($test.ExitCode -ne 0) { Get-Content $log; throw 'Arayuz testi basarisiz.' }
-          if (-not (Test-Path $image)) { throw 'Arayuz onizlemesi olusmadi.' }
+          foreach ($scale in @(100,125,150)) {
+            $name = if ($scale -eq 100) { 'JOY_IPTV_Menu_Onizleme.png' } else { "JOY_IPTV_Menu_${scale}_Onizleme.png" }
+            $image = Join-Path $env:GITHUB_WORKSPACE $name
+            $log = Join-Path $env:GITHUB_WORKSPACE "ui-test-errors-$scale.txt"
+            $output = Join-Path $env:GITHUB_WORKSPACE "ui-test-output-$scale.txt"
+            $test = Start-Process -FilePath $exe -ArgumentList @('--verify-ui', $image, $scale) -RedirectStandardError $log -RedirectStandardOutput $output -PassThru
+            if (-not $test.WaitForExit(120000)) { $test.Kill(); throw 'Arayuz testi zaman asimi.' }
+            Get-Content $output
+            if ($test.ExitCode -ne 0) { Get-Content $log; throw "Arayuz testi basarisiz: $scale" }
+            if (-not (Test-Path $image)) { throw 'Arayuz onizlemesi olusmadi.' }
+          }
       - name: Tek EXE paketini yukle
         uses: actions/upload-artifact@v4
         with:

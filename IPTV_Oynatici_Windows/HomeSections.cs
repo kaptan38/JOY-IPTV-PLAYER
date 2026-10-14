@@ -100,7 +100,7 @@ internal sealed partial class PlayerForm
     {
         if (cinemaHomeBar?.Parent is not TableLayoutPanel content) return;
         bool show = kinds.SelectedItem as string == "Tümü" && !cinemaPlayingView && !favoritesOnly.Checked && filter.Text.Trim().Length == 0;
-        cinemaHomeBar.Visible = show; content.RowStyles[2].Height = show ? (int)(60 * DeviceDpi / 96d) : 0;
+        cinemaHomeBar.Visible = show; content.RowStyles[2].Height = show ? (int)(60 * InterfaceScale) : 0;
         foreach (var pair in homeButtons)
         {
             var section = homeSections.FirstOrDefault(s => s.Title == pair.Key);

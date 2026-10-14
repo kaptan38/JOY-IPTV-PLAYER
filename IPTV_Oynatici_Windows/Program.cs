@@ -25,10 +25,12 @@ internal static class Program
                 return;
             }
             ApplicationConfiguration.Initialize();
-            if (args.Length == 2 && args[0] == "--verify-ui")
+            if (args.Length >= 2 && args[0] == "--verify-ui")
             {
                 using var preview = new PlayerForm();
-                preview.VerifyVisualLayout(args[1]);
+                int scale = args.Length >= 3 ? int.Parse(args[2]) : 100;
+                if (scale is not (100 or 125 or 150)) throw new ArgumentException("Preview scale must be 100, 125 or 150.");
+                preview.VerifyVisualLayout(args[1], scale / 100f);
                 return;
             }
             Application.Run(new PlayerForm());
@@ -105,7 +107,7 @@ internal sealed partial class PlayerForm : Form
 
     public PlayerForm()
     {
-        Text = "JOY IPTV Player"; Width = 1300; Height = 780; MinimumSize = new Size(900, 550);
+        Text = "JOY IPTV Player " + ReleaseInfo.Version; Width = 1300; Height = 780; MinimumSize = new Size(900, 550);
         KeyPreview = true;
         fullscreenKeys = new FullscreenKeys(this);
         Application.AddMessageFilter(fullscreenKeys);

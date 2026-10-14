@@ -15,6 +15,8 @@ internal sealed partial class PlayerForm
     private Color detailColor = Color.FromArgb(180, 194, 210);
     private Font? cardTitleFont;
     private Font? cardDetailFont;
+    private float layoutPreviewScale = 1f;
+    private double InterfaceScale => DeviceDpi / 96d * layoutPreviewScale;
 
     private void SetupVisuals()
     {
@@ -101,7 +103,7 @@ internal sealed partial class PlayerForm
             ControlPaint.DrawFocusRectangle(e.Graphics, card, ink, background);
     }
 
-    internal void VerifyVisualLayout(string screenshotPath)
+    internal void VerifyVisualLayout(string screenshotPath, float previewScale = 1f)
     {
         cinemaPreferences = new CinemaPreferences(false, PosterSize.Medium, false); ApplyCinemaPreferences();
         channels.Clear();
@@ -135,8 +137,23 @@ internal sealed partial class PlayerForm
         status.Text = "Tasarım önizlemesi • örnek içerik • yayın oynatılmıyor";
         // Render the application controls at a fixed viewport independently of
         // the hosted runner's small desktop working area.
+        AutoScaleMode = AutoScaleMode.None;
+        layoutPreviewScale = previewScale;
+        if (previewScale != 1f)
+        {
+            var fonts = new List<(Control Control, Font Font)>();
+            void RememberFonts(Control root)
+            { fonts.Add((root, root.Font)); foreach (Control child in root.Controls) RememberFonts(child); }
+            RememberFonts(cinemaRoot!);
+            Scale(new SizeF(previewScale, previewScale));
+            foreach (var entry in fonts) entry.Control.Font = new Font(entry.Font.FontFamily, entry.Font.SizeInPoints * previewScale, entry.Font.Style);
+            cinemaGallery!.SetPreviewScale(previewScale);
+        }
         cinemaRoot!.Dock = DockStyle.None;
-        cinemaRoot.Size = new Size(1400, 900); cinemaRoot.PerformLayout();
+        cinemaRoot.Size = new Size((int)(1400 * previewScale), (int)(900 * previewScale)); cinemaRoot.PerformLayout();
+        if (cinemaMainHost!.Width < 250 * previewScale || cinemaMainHost.Height < 100 * previewScale)
+            throw new InvalidOperationException("Scaled content viewport clipped.");
+        Console.WriteLine($"UI scale={previewScale}; root={cinemaRoot.Size}; content={cinemaMainHost.Size}; search={filter.Size}");
         Application.DoEvents();
         using var bitmap = new Bitmap(cinemaRoot.Width, cinemaRoot.Height);
         cinemaRoot.DrawToBitmap(bitmap, new Rectangle(0, 0, cinemaRoot.Width, cinemaRoot.Height));
