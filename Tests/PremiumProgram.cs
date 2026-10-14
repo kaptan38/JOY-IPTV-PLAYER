@@ -77,7 +77,10 @@ internal static class PremiumProgram
             foreach (var check in new (string Name, Action Run)[] {
                 ("poster-cache", () => PosterCacheTests.Run(assembly)), ("recovery", () => FeatureTests.Recovery(assembly)),
                 ("logs", () => LogTests.Run(assembly)), ("menu-layout", () => FeatureTests.Menu(assembly)),
-                ("home", () => HomeTests.Run(assembly)), ("backup", () => FeatureTests.Backup(assembly)) })
+                ("home", () => HomeTests.Run(assembly)), ("backup", () => FeatureTests.Backup(assembly)),
+                ("rollback-hardening", () => ReviewTests.ReadOnlyRollback(assembly)), ("profile-storage", () => ReviewTests.Profiles(assembly)),
+                ("stale-recovery", () => ReviewTests.PendingRecovery(assembly)), ("source-playback", () => ReviewTests.SourcePlayback(assembly)),
+                ("kind-return", () => ReviewTests.KindReturn(assembly)) })
             {
                 if (selectedCases != "all" && !selectedCases.Split(',').Contains(check.Name)) continue;
                 try { check.Run(); } catch (Exception ex) { failures++; Console.Error.WriteLine(check.Name + ": " + ex); }
