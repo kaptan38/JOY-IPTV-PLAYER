@@ -103,6 +103,7 @@ internal sealed partial class PlayerForm
 
     internal void VerifyVisualLayout(string screenshotPath)
     {
+        cinemaPreferences = new CinemaPreferences(false, PosterSize.Medium, false); ApplyCinemaPreferences();
         channels.Clear();
         foreach (string name in new[] { "Son Yolculuk", "Gece İstanbul", "Ufkun Ötesi", "Sessiz Şehir", "Mavi Rota", "Yeni Bir Gün", "Gölge", "Kuzey Işığı" })
             channels.Add(new Channel(name, "Örnek Sinema", "", "Film", Description: "Tasarım önizlemesi için örnek içerik. Gerçek yayın veya film bilgisi değildir."));

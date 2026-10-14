@@ -771,6 +771,7 @@ internal sealed partial class PlayerForm : Form
             if (!player.Play(media)) throw new InvalidOperationException("VLC oynatmayı başlatamadı.");
             ApplyPictureProfile();
             playingChannel = item; currentStreamUrl = url; PrepareResume(item); StartWatchSession();
+            if (!recovering) RememberRecent(item);
             list.Invalidate();
             ShowCinemaPlayback();
             status.Text = "Oynatılıyor: " + item.Name;

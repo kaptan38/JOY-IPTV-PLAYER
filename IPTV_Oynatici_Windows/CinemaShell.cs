@@ -72,6 +72,7 @@ internal sealed partial class PlayerForm
             string kind = item.Item1;
             var button = RailButton(item.Item2, (_, _) =>
             {
+                if (kind == "Tümü") selectedHomeSection = "";
                 favoritesOnly.Checked = false; cinemaPlayingView = false;
                 kinds.SelectedItem = kind; UpdateCinemaMode();
             });
@@ -89,12 +90,14 @@ internal sealed partial class PlayerForm
         rail.Controls.Add(lower, 0, 2);
         cinemaRoot.Controls.Add(rail, 0, 0);
 
-        var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
+        var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4,
             Padding = new Padding(16, 14, 12, 6), Margin = Padding.Empty };
         content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         content.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
         content.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        SetupHomeNavigation(content);
         var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
@@ -145,7 +148,7 @@ internal sealed partial class PlayerForm
         cinemaDetails.Controls.Add(cinemaRecommendation);
         cinemaDetails.Controls.Add(Button("✦  Sana özel öneriler", (_, _) =>
         { favoritesOnly.Checked = false; cinemaPlayingView = false; kinds.SelectedItem = "Önerilen"; UpdateCinemaMode(); }));
-        body.Controls.Add(cinemaDetails, 1, 0); content.Controls.Add(body, 0, 2);
+        body.Controls.Add(cinemaDetails, 1, 0); content.Controls.Add(body, 0, 3);
         cinemaRoot.Controls.Add(content, 1, 0);
 
         playbackBar.Controls.Clear(); playbackBar.Dock = DockStyle.Fill;
@@ -232,7 +235,7 @@ internal sealed partial class PlayerForm
             pair.Value.BackColor = active ? selectionColor : top.BackColor;
             pair.Value.ForeColor = active ? Color.FromArgb(14, 40, 46) : ForeColor;
         }
-        RefreshCinemaEmptyState();
+        RefreshHomeNavigation(); RefreshCinemaEmptyState();
     }
 
     private void RefreshCinemaDetails()
@@ -308,7 +311,7 @@ internal sealed partial class PlayerForm
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true };
         var add = Button("＋ Kaynak ekle", (_, _) => ShowCinemaSources()); add.Height = 42; actions.Controls.Add(add);
         actions.Controls.Add(Button("Filtreleri temizle", (_, _) =>
-        { filter.Clear(); favoritesOnly.Checked = false; kinds.SelectedItem = "Tümü"; RefreshGroups(); }));
+        { selectedHomeSection = ""; filter.Clear(); favoritesOnly.Checked = false; kinds.SelectedItem = "Tümü"; RefreshGroups(); }));
         cinemaEmpty.Controls.Add(actions, 1, 3); cinemaMainHost!.Controls.Add(cinemaEmpty);
     }
 

@@ -66,7 +66,7 @@ internal sealed partial class PlayerForm
         };
         playbackTimer.Tick += (_, _) => { UpdatePlayback(); MonitorLivePlayback(); };
         playbackTimer.Start();
-        LoadSavedSources(); LoadResumePositions(); LoadContinueItems(); LoadWatchHistory();
+        LoadSavedSources(); LoadResumePositions(); LoadContinueItems(); LoadWatchHistory(); LoadRecentItems();
     }
 
     private void OnChannelsLoaded()
@@ -352,4 +352,5 @@ internal sealed partial class PlayerForm
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Windows VPN ayarları"); }
     }
 }
+
 

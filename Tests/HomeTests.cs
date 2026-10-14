@@ -14,12 +14,23 @@ internal static class HomeTests
         channels.Add(item);
         string key = (string)form.GetType().GetMethod("FavoriteKey", p)!.Invoke(form, new object[] { item })!;
         Field("favorites").GetType().GetMethod("Add")!.Invoke(Field("favorites"), new object[] { key });
-        var build = form.GetType().GetMethod("BuildHomeSections", p);
+        string sourceKey = (string)form.GetType().GetMethod("CacheKey", p)!.Invoke(form, null)!;
+        var entryType = a.GetType("JoyIptv.ContinueEntry")!;
+        var continues = (IDictionary)Field("continueItems");
+        continues[key] = Activator.CreateInstance(entryType, new object[] { key, sourceKey, item, DateTime.UtcNow.AddHours(-1) })!;
+        ((IDictionary)Field("resumePositions"))[key] = 120000L;
+        continues["other"] = Activator.CreateInstance(entryType, new object[] { "other", "other-source", item, DateTime.UtcNow })!;
+        ((IDictionary)Field("resumePositions"))["other"] = 60000L;
+        var build = form.GetType().GetMethods(p).SingleOrDefault(m => m.Name == "BuildHomeSections" && m.GetParameters().Length == 0);
         if (build == null) throw new Exception("FAIL: home is a flat catalog instead of current-source sections.");
         var sections = ((IEnumerable)build.Invoke(form, null)!).Cast<object>().ToList();
         var favorites = sections.FirstOrDefault(s => s.GetType().GetProperty("Title")!.GetValue(s)?.ToString() == "Favoriler");
         if (favorites == null || ((IEnumerable)favorites.GetType().GetProperty("Items")!.GetValue(favorites)!).Cast<object>().Count() != 1)
             throw new Exception("FAIL: home lost favorite from active source.");
+        var resume = sections.Single(s => s.GetType().GetProperty("Title")!.GetValue(s)?.ToString() == "İzlemeye devam");
+        var resumed = ((IEnumerable)resume.GetType().GetProperty("Items")!.GetValue(resume)!).Cast<object>().ToList();
+        if (resumed.Count != 1 || (long)resumed[0].GetType().GetProperty("ResumeMs")!.GetValue(resumed[0])! != 120000)
+            throw new Exception("FAIL: continue section lost position or crossed source.");
         var address = (TextBox)Field("address"); address.Text = "http://127.0.0.1/other";
         sections = ((IEnumerable)build.Invoke(form, null)!).Cast<object>().ToList();
         if (sections.Any(s => s.GetType().GetProperty("Title")!.GetValue(s)?.ToString() == "Favoriler" &&
