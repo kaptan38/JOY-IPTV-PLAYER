@@ -21,6 +21,8 @@ internal static class HomeTests
         ((IDictionary)Field("resumePositions"))[key] = 120000L;
         continues["other"] = Activator.CreateInstance(entryType, new object[] { "other", "other-source", item, DateTime.UtcNow })!;
         ((IDictionary)Field("resumePositions"))["other"] = 60000L;
+        ((IDictionary)Field("recentItems"))[key] = Activator.CreateInstance(entryType,
+            new object[] { key, "other-source", item, DateTime.UtcNow.AddMinutes(1) })!;
         var build = form.GetType().GetMethods(p).SingleOrDefault(m => m.Name == "BuildHomeSections" && m.GetParameters().Length == 0);
         if (build == null) throw new Exception("FAIL: home is a flat catalog instead of current-source sections.");
         var sections = ((IEnumerable)build.Invoke(form, null)!).Cast<object>().ToList();
@@ -31,6 +33,9 @@ internal static class HomeTests
         var resumed = ((IEnumerable)resume.GetType().GetProperty("Items")!.GetValue(resume)!).Cast<object>().ToList();
         if (resumed.Count != 1 || (long)resumed[0].GetType().GetProperty("ResumeMs")!.GetValue(resumed[0])! != 120000)
             throw new Exception("FAIL: continue section lost position or crossed source.");
+        var recent = sections.Single(s => s.GetType().GetProperty("Title")!.GetValue(s)?.ToString() == "Son izlenenler");
+        if (((IEnumerable)recent.GetType().GetProperty("Items")!.GetValue(recent)!).Cast<object>().Count() != 1)
+            throw new Exception("FAIL: identical channel identity in another source hides current-source history.");
         var address = (TextBox)Field("address"); address.Text = "http://127.0.0.1/other";
         sections = ((IEnumerable)build.Invoke(form, null)!).Cast<object>().ToList();
         if (sections.Any(s => s.GetType().GetProperty("Title")!.GetValue(s)?.ToString() == "Favoriler" &&
