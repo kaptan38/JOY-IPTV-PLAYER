@@ -46,6 +46,16 @@ internal static class PremiumProgram
             Check((int)selection.GetValue(control)! == 0, "Home did not select first channel.");
             control.GetType().GetMethod("OnKeyDown", props)!.Invoke(control, new object[] { new KeyEventArgs(Keys.End) });
             Check((int)selection.GetValue(control)! == 99999, "End did not select final channel.");
+            foreach (var pair in new[] { (Keys.Up, 99998), (Keys.Down, 99999), (Keys.PageUp, 99999 - control.Height / 62), (Keys.Home, 0), (Keys.PageDown, control.Height / 62) })
+            {
+                control.GetType().GetMethod("OnKeyDown", props)!.Invoke(control, new object[] { new KeyEventArgs(pair.Item1) });
+                Check((int)selection.GetValue(control)! == pair.Item2, "Keyboard navigation failed: " + pair.Item1);
+            }
+            int activated = 0;
+            EventHandler activate = (_, _) => activated++;
+            control.GetType().GetEvent("ItemActivated", props)!.AddEventHandler(control, activate);
+            control.GetType().GetMethod("OnKeyDown", props)!.Invoke(control, new object[] { new KeyEventArgs(Keys.Enter) });
+            Check(activated == 1, "Enter did not activate selected channel.");
             int drawn = 0;
             DrawItemEventHandler handler = (_, _) => drawn++;
             control.GetType().GetEvent("DrawItem", props)!.AddEventHandler(control, handler);
@@ -57,9 +67,22 @@ internal static class PremiumProgram
             control.GetType().GetMethod("SetItems", props)!.Invoke(control, new object[] { Array.CreateInstance(channelType, 0), -1 });
             Check((int)control.GetType().GetMethod("IndexFromPoint", props)!.Invoke(control, new object[] { new Point(10, 10) })! == -1,
                 "Empty area identified as a channel.");
+            control.GetType().GetMethod("OnMouseDoubleClick", props)!.Invoke(control, new object[] { new MouseEventArgs(MouseButtons.Left, 2, 10, 10, 0) });
+            Check(activated == 1, "Double-click on empty area activated a channel.");
             Console.WriteLine("PASS: 100,000 channels retain selection and draw only visible rows.");
             SearchTests.Run(assembly);
-            return 0;
+            int failures = 0;
+            int caseIndex = Array.IndexOf(args, "--case");
+            string selectedCases = caseIndex >= 0 && caseIndex + 1 < args.Length ? args[caseIndex + 1] : "all";
+            foreach (var check in new (string Name, Action Run)[] {
+                ("poster-cache", () => PosterCacheTests.Run(assembly)), ("recovery", () => FeatureTests.Recovery(assembly)),
+                ("logs", () => LogTests.Run(assembly)), ("menu-layout", () => FeatureTests.Menu(assembly)),
+                ("home", () => HomeTests.Run(assembly)), ("backup", () => FeatureTests.Backup(assembly)) })
+            {
+                if (selectedCases != "all" && !selectedCases.Split(',').Contains(check.Name)) continue;
+                try { check.Run(); } catch (Exception ex) { failures++; Console.Error.WriteLine(check.Name + ": " + ex); }
+            }
+            return failures == 0 ? 0 : 1;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
     }
