@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Net;
+using System.Drawing.Imaging;
 
 namespace JoyIptv;
 
@@ -17,6 +18,8 @@ internal sealed class PosterGallery : ScrollableControl
     private readonly Font smallFont = new("Segoe UI", 9);
     private readonly Font symbolFont = new("Segoe UI", 30, FontStyle.Bold);
     private int hoverIndex = -1;
+    private readonly PosterDiskCache disk = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JOY_IPTV_Player", "afis_onbellek"));
+    private readonly HashSet<string> visibleUrls = new(StringComparer.Ordinal);
     internal event EventHandler? SelectionChanged;
     internal event EventHandler? ItemActivated;
     internal event EventHandler? ImageReady;
@@ -49,6 +52,7 @@ internal sealed class PosterGallery : ScrollableControl
 
     internal Image? GetPoster(string url)
     {
+        if (String.IsNullOrWhiteSpace(url) || IsDisposed) return null;
         if (images.TryGetValue(url, out var image)) return image;
         if (pending.Count < 64 && !failed.Contains(url) && pending.Add(url)) _ = DownloadAsync(url);
         return null;
@@ -56,40 +60,54 @@ internal sealed class PosterGallery : ScrollableControl
 
     private async Task DownloadAsync(string url)
     {
-        bool acquired = false;
+        bool acquired = false; Bitmap? bitmap = null; PosterCacheEntry? cached = null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(12));
         try
         {
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
-                throw new FormatException();
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) throw new FormatException();
             await downloads.WaitAsync(lifetime.Token); acquired = true;
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-            response.EnsureSuccessStatusCode();
-            const int limit = 3 * 1024 * 1024;
-            if (response.Content.Headers.ContentLength > limit) throw new InvalidDataException();
-            using var input = await response.Content.ReadAsStreamAsync(timeout.Token);
-            using var memory = new MemoryStream();
-            byte[] buffer = new byte[16384]; int read;
-            while ((read = await input.ReadAsync(buffer, timeout.Token)) > 0)
+            // Obsolete queued cards yield the slot to the newly visible viewport.
+            if (items.Count > 0 && !visibleUrls.Contains(url) &&
+                !(SelectedIndex >= 0 && SelectedIndex < items.Count && items[SelectedIndex].PosterUrl == url)) return;
+            cached = await disk.ReadAsync(url, lifetime.Token);
+            if (cached != null && !cached.IsStale) bitmap = await Task.Run(() => PosterDiskCache.Decode(cached.Bytes), lifetime.Token);
+            else
             {
-                if (memory.Length + read > limit) throw new InvalidDataException();
-                memory.Write(buffer, 0, read);
+                timeout.CancelAfter(TimeSpan.FromSeconds(12));
+                try
+                {
+                    using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+                    response.EnsureSuccessStatusCode();
+                    const int limit = PosterDiskCache.ImageLimit;
+                    if (response.Content.Headers.ContentLength > limit) throw new InvalidDataException();
+                    using var input = await response.Content.ReadAsStreamAsync(timeout.Token);
+                    using var memory = new MemoryStream();
+                    byte[] buffer = new byte[16384]; int read;
+                    while ((read = await input.ReadAsync(buffer, timeout.Token)) > 0)
+                    { if (memory.Length + read > limit) throw new InvalidDataException(); await memory.WriteAsync(buffer.AsMemory(0, read), timeout.Token); }
+                    byte[] bytes = memory.ToArray();
+                    bitmap = await Task.Run(() => PosterDiskCache.Decode(bytes), lifetime.Token);
+                    byte[] scaled = await Task.Run(() =>
+                    { using var data = new MemoryStream(); bitmap!.Save(data, ImageFormat.Png); return data.ToArray(); }, lifetime.Token);
+                    try { await disk.WriteAsync(url, scaled, lifetime.Token); }
+                    catch (IOException) { /* Disk failure must not hide a downloaded poster. */ }
+                    catch (UnauthorizedAccessException) { }
+                }
+                catch when (cached != null && !lifetime.IsCancellationRequested)
+                { bitmap?.Dispose(); bitmap = await Task.Run(() => PosterDiskCache.Decode(cached.Bytes), lifetime.Token); }
             }
-            memory.Position = 0;
-            using var original = Image.FromStream(memory);
-            if ((long)original.Width * original.Height > 20_000_000) throw new InvalidDataException();
-            float shrink = Math.Min(1f, Math.Min(440f / original.Width, 440f / original.Height));
-            var bitmap = new Bitmap(original, Math.Max(1, (int)(original.Width * shrink)), Math.Max(1, (int)(original.Height * shrink)));
-            if (IsDisposed) { bitmap.Dispose(); return; }
+            if (IsDisposed || lifetime.IsCancellationRequested) return;
             if (images.Count >= 128)
-            {
-                string first = images.Keys.First(); images[first].Dispose(); images.Remove(first);
-            }
-            images[url] = bitmap; Invalidate(); ImageReady?.Invoke(this, EventArgs.Empty);
+            { string first = images.Keys.First(); images[first].Dispose(); images.Remove(first); }
+            images[url] = bitmap!; bitmap = null; Invalidate(); ImageReady?.Invoke(this, EventArgs.Empty);
         }
+        catch (OperationCanceledException) { }
         catch { if (!IsDisposed) { if (failed.Count >= 512) failed.Clear(); failed.Add(url); } }
-        finally { if (acquired) downloads.Release(); pending.Remove(url); }
+        finally
+        {
+            bitmap?.Dispose(); if (acquired) downloads.Release(); pending.Remove(url);
+            if (!IsDisposed && !lifetime.IsCancellationRequested) Invalidate();
+        }
     }
 
     protected override void OnResize(EventArgs e)
@@ -109,6 +127,8 @@ internal sealed class PosterGallery : ScrollableControl
         }
         int firstRow = Math.Max(0, -AutoScrollPosition.Y / CardHeight);
         int lastRow = firstRow + ClientSize.Height / CardHeight + 2;
+        visibleUrls.Clear();
+        for (int i = firstRow * Columns; i < Math.Min(items.Count, lastRow * Columns); i++) visibleUrls.Add(items[i].PosterUrl);
         for (int index = firstRow * Columns; index < Math.Min(items.Count, lastRow * Columns); index++)
         {
             var item = items[index];
@@ -219,4 +239,5 @@ internal sealed class PosterGallery : ScrollableControl
         base.Dispose(disposing);
     }
 }
+
 

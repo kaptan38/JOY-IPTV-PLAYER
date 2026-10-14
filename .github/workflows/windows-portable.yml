@@ -39,7 +39,7 @@ jobs:
         run: |
           $cache = Join-Path $env:USERPROFILE '.nuget\packages'
           $native = Get-ChildItem (Join-Path $cache 'videolan.libvlc.windows\3.0.21') -Recurse -Filter libvlc.dll | Where-Object { $_.FullName -match 'win-x64|x64' } | Select-Object -First 1
-          dotnet run --project Tests/PremiumRegression.csproj -c Release -- $native.DirectoryName
+          dotnet run --project Tests/PremiumRegression.csproj -c Release -- $native.DirectoryName --case poster-cache
           if ($LASTEXITCODE -ne 0) { throw 'Premium regression failed.' }
       - name: VLC motorunu EXE icine gom
         shell: pwsh
