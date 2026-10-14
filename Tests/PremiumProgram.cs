@@ -23,6 +23,7 @@ internal static class PremiumProgram
             // catalog query is allowed to replace its own binding during message pumping.
             using var virtualControl = (Control)Activator.CreateInstance(control.GetType(), true)!;
             control = virtualControl;
+            control.Dock = DockStyle.Fill;
             var channelType = assembly.GetType("JoyIptv.Channel")!;
             var entries = Array.CreateInstance(channelType, 100000);
             var ctor = channelType.GetConstructors()[0];
@@ -38,7 +39,8 @@ internal static class PremiumProgram
             {
                 selection.SetValue(control, index); Application.DoEvents();
                 Check((int)selection.GetValue(control)! == index, "Virtual selection lost at " + index);
-                Check((int)top.GetValue(control)! <= index, "Selected row scrolled outside viewport.");
+                Check((int)top.GetValue(control)! <= index,
+                    $"Selected row {index} scrolled outside viewport: top {top.GetValue(control)}, height {control.Height}.");
             }
             control.GetType().GetMethod("OnKeyDown", props)!.Invoke(control, new object[] { new KeyEventArgs(Keys.Home) });
             Check((int)selection.GetValue(control)! == 0, "Home did not select first channel.");

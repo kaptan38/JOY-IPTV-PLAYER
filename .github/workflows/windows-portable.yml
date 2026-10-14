@@ -18,6 +18,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Restore package cache
+        id: packages
+        uses: actions/cache/restore@v4
+        with:
+          path: '~/.nuget/packages'
+          key: joy-windows-net8-vlc-3.0.21-v1
       - name: Kaynak yukleme regresyon testi
         shell: pwsh
         run: |
@@ -77,3 +83,9 @@ jobs:
           retention-days: 14
 
 
+      - name: Save package cache
+        if: always() && steps.packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: '~/.nuget/packages'
+          key: joy-windows-net8-vlc-3.0.21-v1
