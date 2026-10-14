@@ -42,7 +42,7 @@ internal static class Program
                 return;
             }
             var log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "JOY_IPTV_acilis_hatasi.txt");
-            try { File.WriteAllText(log, ex.ToString()); }
+            try { File.WriteAllText(log, DiagnosticLog.Sanitize(ex.ToString(), Array.Empty<string>())); }
             catch { log = "Masaüstüne hata kaydı yazılamadı"; }
             MessageBox.Show(ex.ToString() + "\n\nKayıt: " + log, "JOY IPTV açılış hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
@@ -143,16 +143,8 @@ internal sealed partial class PlayerForm : Form
         videoMenu.Items.Add("Tam ekran / çık (F11)", null, (_, _) => ToggleFullscreen());
         video.ContextMenuStrip = videoMenu;
         player.Volume = volume.Value;
-        player.EncounteredError += (_, _) =>
-        {
-            if (IsHandleCreated && !IsDisposed)
-                BeginInvoke(() => { if (!IsDisposed) ScheduleLiveRecovery(); });
-        };
-        player.EndReached += (_, _) =>
-        {
-            if (IsHandleCreated && !IsDisposed)
-                BeginInvoke(() => { if (!IsDisposed) ScheduleLiveRecovery(); });
-        };
+        player.EncounteredError += (_, _) => QueueLiveRecovery();
+        player.EndReached += (_, _) => QueueLiveRecovery();
         Controls.Add(video); Controls.Add(left); Controls.Add(status); Controls.Add(top);
         SetupExtras(top, left);
         SetupSubtitles(top);
@@ -243,6 +235,7 @@ internal sealed partial class PlayerForm : Form
         { status.Text = "Yükleme iptal edildi."; }
         catch (Exception e)
         {
+            _ = LogDiagnosticAsync("source-error", e.ToString());
             var fallback = e is HttpRequestException or TaskCanceledException or TimeoutException
                 ? await ReadChannelCacheAsync() : (new List<Channel>(), default(DateTime));
             var (cached, cachedAt) = fallback;
@@ -727,7 +720,12 @@ internal sealed partial class PlayerForm : Form
         if (retryItem == null && (list.SelectedIndex < 0 || list.SelectedIndex >= visible.Count)) return;
         bool recovering = retryItem != null;
         int attemptGeneration = recovering ? recoveryGeneration : ++recoveryGeneration;
-        if (!recovering) { recoveryAttempts = 0; recoveryPending = false; }
+        if (!recovering)
+        {
+            recoveryCancellation?.Cancel(); recoveryCancellation?.Dispose(); recoveryCancellation = null;
+            recoveryPolicy.Reset(attemptGeneration); recoveryAttempts = 0; recoveryPending = false;
+            bufferingSince = stableSince = DateTime.MinValue;
+        }
         try
         {
             var item = retryItem ?? visible[list.SelectedIndex]; string url = item.Url;
@@ -780,6 +778,7 @@ internal sealed partial class PlayerForm : Form
         catch (Exception e)
         {
             if (attemptGeneration != recoveryGeneration) return;
+            _ = LogDiagnosticAsync("playback-error", e.ToString());
             status.Text = "Oynatma başarısız: " + (e is HttpRequestException request && request.StatusCode is { } code
                 ? "HTTP " + (int)code : e is TaskCanceledException ? "zaman aşımı" : "bağlantı veya akış hatası");
             if (recovering) recoveryPlayFailed = true;
