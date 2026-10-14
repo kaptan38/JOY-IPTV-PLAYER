@@ -36,6 +36,12 @@ internal static class HomeTests
         var recent = sections.Single(s => s.GetType().GetProperty("Title")!.GetValue(s)?.ToString() == "Son izlenenler");
         if (((IEnumerable)recent.GetType().GetProperty("Items")!.GetValue(recent)!).Cast<object>().Count() != 1)
             throw new Exception("FAIL: identical channel identity in another source hides current-source history.");
+        var directEpisode = a.GetType("JoyIptv.Channel")!.GetConstructors()[0].Invoke(new object?[] {
+            "Dizi S01E01", "Diziler", "http://127.0.0.1/series/episode.mp4", "Dizi", null, 0, 0, "", "", "" });
+        string episodeKey = (string)form.GetType().GetMethod("FavoriteKey", p)!.Invoke(form, new[] { directEpisode })!;
+        ((IDictionary)Field("resumePositions"))[episodeKey] = 90000L;
+        form.GetType().GetMethod("PrepareResume", p)!.Invoke(form, new[] { directEpisode });
+        if ((long)Field("pendingResume") != 90000L) throw new Exception("FAIL: direct M3U series episode cannot resume.");
         var address = (TextBox)Field("address"); address.Text = "http://127.0.0.1/other";
         sections = ((IEnumerable)build.Invoke(form, null)!).Cast<object>().ToList();
         if (sections.Any(s => s.GetType().GetProperty("Title")!.GetValue(s)?.ToString() == "Favoriler" &&
