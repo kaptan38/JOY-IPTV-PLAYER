@@ -34,7 +34,7 @@ internal sealed partial class PlayerForm
             var result = await Task.Run(() => LibrarySearch.Filter(snapshot, query, token), token);
             if (token.IsCancellationRequested || generation != libraryFilterGeneration ||
                 snapshot.CatalogVersion != libraryCatalogVersion || prefix != FavoritePrefix || IsDisposed || Disposing) return;
-            var position = categoryPositions.GetValueOrDefault(category, (previous, 0));
+            (Channel? Selected, int Top) position = categoryPositions.GetValueOrDefault(category, (previous, 0));
             visible = result; displayedCategory = category;
             int index = position.Selected == null ? -1 : result.IndexOf(position.Selected);
             list.SetItems(result, index >= 0 ? index : result.Count > 0 ? 0 : -1);
