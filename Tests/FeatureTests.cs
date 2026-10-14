@@ -103,12 +103,20 @@ internal static class FeatureTests
             try { ((Task)type.GetMethod("RestoreAsync", flags)!.Invoke(null, new object[] { archive, dir, CancellationToken.None })!).GetAwaiter().GetResult(); throw new Exception("FAIL: corrupt backup accepted."); }
             catch (System.Security.Cryptography.CryptographicException) { }
             Check(File.ReadAllText(Path.Combine(dir, "theme.txt")) == "original", "Corrupt restore modified settings.");
+            File.WriteAllBytes(archive, System.Security.Cryptography.ProtectedData.Protect(new byte[] { 1, 2, 3 }, new byte[] { 99 },
+                System.Security.Cryptography.DataProtectionScope.CurrentUser));
+            try { ((Task)type.GetMethod("RestoreAsync", flags)!.Invoke(null, new object[] { archive, dir, CancellationToken.None })!).GetAwaiter().GetResult(); throw new Exception("FAIL: wrong-key backup accepted."); }
+            catch (System.Security.Cryptography.CryptographicException) { }
+            Check(File.ReadAllText(Path.Combine(dir, "theme.txt")) == "original", "Wrong-key restore modified settings.");
             foreach (string name in new[] { "../escape.txt", "C:/escape.txt", "theme.txt:stream" })
             {
                 using var memory = new MemoryStream();
                 using (var zip = new System.IO.Compression.ZipArchive(memory, System.IO.Compression.ZipArchiveMode.Create, true))
                 {
-                    using var writer = new StreamWriter(zip.CreateEntry(name).Open()); writer.Write("malicious");
+                    using (var writer = new StreamWriter(zip.CreateEntry(name).Open())) writer.Write("malicious");
+                    using var manifest = new StreamWriter(zip.CreateEntry("manifest.json").Open());
+                    manifest.Write(System.Text.Json.JsonSerializer.Serialize(new { Schema = 1, Files = new[] {
+                        new { Name = name, Size = 9, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("malicious"))) } } }));
                 }
                 File.WriteAllBytes(archive, System.Security.Cryptography.ProtectedData.Protect(memory.ToArray(), null,
                     System.Security.Cryptography.DataProtectionScope.CurrentUser));
@@ -116,6 +124,16 @@ internal static class FeatureTests
                 catch (InvalidDataException) { }
                 Check(File.ReadAllText(Path.Combine(dir, "theme.txt")) == "original", "Unsafe restore changed existing settings.");
             }
+            string rollback = Path.Combine(dir, "rollback"); Directory.CreateDirectory(rollback);
+            File.WriteAllText(Path.Combine(rollback, "theme.txt"), "before");
+            File.WriteAllText(Path.Combine(rollback, "zblocked.json"), "{}");
+            string rollbackArchive = Path.Combine(dir, "rollback.joybackup");
+            ((Task)type.GetMethod("ExportAsync", flags)!.Invoke(null, new object[] { rollback, rollbackArchive, CancellationToken.None })!).GetAwaiter().GetResult();
+            File.WriteAllText(Path.Combine(rollback, "theme.txt"), "keep-me");
+            File.Delete(Path.Combine(rollback, "zblocked.json")); Directory.CreateDirectory(Path.Combine(rollback, "zblocked.json"));
+            try { ((Task)type.GetMethod("RestoreAsync", flags)!.Invoke(null, new object[] { rollbackArchive, rollback, CancellationToken.None })!).GetAwaiter().GetResult(); throw new Exception("FAIL: blocked restore accepted."); }
+            catch (IOException) { }
+            Check(File.ReadAllText(Path.Combine(rollback, "theme.txt")) == "keep-me", "Failed restore did not roll back applied settings.");
         }
         finally { Directory.Delete(dir, true); }
         Console.WriteLine("PASS: encrypted backup round trip and corrupt archive protection.");

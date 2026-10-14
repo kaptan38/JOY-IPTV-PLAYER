@@ -57,7 +57,7 @@ internal sealed partial class PlayerForm : Form
         public FullscreenKeys(PlayerForm owner) { form = owner; }
         public bool PreFilterMessage(ref Message message)
         {
-            if (message.Msg != 0x100) return false;
+            if (form.settingsOperation || message.Msg != 0x100) return false;
             Keys key = (Keys)message.WParam.ToInt32();
             if (form.HandlePlaybackKey(key)) return true;
             if (key != Keys.F11 && !(key == Keys.Escape && form.fullscreen)) return false;
@@ -83,6 +83,8 @@ internal sealed partial class PlayerForm : Form
     { Timeout = TimeSpan.FromSeconds(25) };
     private readonly List<Channel> channels = new();
     private bool loadingSource;
+    private Task stalkerCatalogTask = Task.CompletedTask;
+    private int playbackOperations;
     private int stalkerCatalogGeneration;
     private readonly HashSet<string> favorites = new(StringComparer.Ordinal);
     private readonly string favoritesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -185,7 +187,7 @@ internal sealed partial class PlayerForm : Form
 
     private async Task LoadAsync()
     {
-        if (loadingSource) return;
+        if (loadingSource || settingsOperation) return;
         libraryFilterCancellation?.Cancel(); ++libraryFilterGeneration; StopLiveRecovery();
         loadingSource = true;
         using var cancellation = new CancellationTokenSource();
@@ -228,7 +230,7 @@ internal sealed partial class PlayerForm : Form
             if (activeSource == 3)
             {
                 status.Text = $"{channels.Count} canlı yayın hazır. Film ve diziler arka planda yükleniyor...";
-                _ = LoadStalkerCatalogLaterAsync(loaded.ToList(), catalogGeneration);
+                stalkerCatalogTask = LoadStalkerCatalogLaterAsync(loaded.ToList(), catalogGeneration);
             }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -717,7 +719,9 @@ internal sealed partial class PlayerForm : Form
 
     private async Task PlaySelectedAsync(Channel? retryItem = null)
     {
+        if (settingsOperation) return;
         if (retryItem == null && (list.SelectedIndex < 0 || list.SelectedIndex >= visible.Count)) return;
+        playbackOperations++;
         bool recovering = retryItem != null;
         int attemptGeneration = recovering ? recoveryGeneration : ++recoveryGeneration;
         if (!recovering)
@@ -785,6 +789,7 @@ internal sealed partial class PlayerForm : Form
             if (recovering) recoveryPlayFailed = true;
             else MessageBox.Show(this, ExplainError(e), "Oynatma hatası");
         }
+        finally { playbackOperations--; }
     }
 
     private async Task LoadSeriesEpisodesAsync(string seriesId, int attemptGeneration)

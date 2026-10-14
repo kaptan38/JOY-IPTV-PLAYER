@@ -91,6 +91,9 @@ internal sealed partial class PlayerForm
         Add(recording, "Kayıt planlarını göster", (_, _) => ShowSchedules());
         Add(recording, "Altyazı dosyası ekle", (_, _) => ImportSubtitle());
         Add(recording, "AI altyazı oluştur (10 dk)", async (_, _) => await GenerateSubtitleAsync());
+        Add(tools, "Ayar yedeğini dışa aktar", async (_, _) => await ExportSettingsAsync());
+        Add(tools, "Ayar yedeğini geri yükle", async (_, _) => await RestoreSettingsAsync());
+        Add(tools, "Sürüm ve güncelleme", async (_, _) => await PrepareManualUpdateAsync());
         Add(tools, "Görüntü bilgisi", (_, _) => ShowVideoInfo());
         Add(tools, "Kart / kompakt liste görünümü", (_, _) => ToggleListCards());
         Add(tools, "Akıllı yardımcı ve öneriler", (_, _) => ShowSmartAssistant());

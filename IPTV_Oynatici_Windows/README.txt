@@ -1,3 +1,17 @@
+JOY IPTV 2.0.0 — Kararlı görsel sürüm
+
+100.000 kanallı sanal liste, arka planda arama, 7 gün/256 MB afiş önbelleği.
+Otomatik tampon (1,5/3/5/9 sn), üç denemeli yeniden bağlantı, gizli veriyi temizleyen tanı kaydı.
+Menü daraltma, küçük/orta/büyük afiş, son izlenenler/devam/favori ana sayfa bölümleri.
+Ayarlar Windows hesabına bağlı şifreli .joybackup dosyasıyla dışa alınır.
+Geri yükleme için yayınları/kayıtları durdurun, kaynak yüklemesinin bitmesini bekleyin.
+Geri yüklemeden önce otomatik önceki yedek alınır; başarıda uygulama yeniden açılır.
+Güncelleme ekranı kendi EXE dosyasının kopyasını saklar ve resmî GitHub sayfasını açar.
+Programı kapattıktan sonra yeni EXE ile elle değiştirin; indirilen EXE otomatik çalıştırılmaz.
+EXE dönüşü ve ayar yedeği dönüşü ayrı işlemlerdir.
+VLC ve .NET EXE içine gömülüdür; ayrıca kurulum gerekmez.
+Sağlayıcının hızı ve yayın sürekliliği uygulamanın denetiminde değildir.
+
 JOY IPTV Player - Windows 10/11 x64
 
 AKILLI YARDIMCI: Araclar > Akilli yardimci ve oneriler.
@@ -228,3 +242,4 @@ baska bir klasore tasimak VLC dosyalarini geride birakir.
 ACILIS TANILAMA SURUMU: EXE acilmazsa Masaustu'nde
 JOY_IPTV_acilis_hatasi.txt olusur. Icini paylasin. Kayit olusmazsa
 Windows Olay Goruntuleyicisi > Windows Gunlukleri > Uygulama kaydina bakin.
+
