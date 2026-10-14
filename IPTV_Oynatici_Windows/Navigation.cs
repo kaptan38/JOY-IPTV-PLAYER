@@ -20,7 +20,7 @@ internal sealed partial class PlayerForm
             libraryPositions[currentLibraryKind] =
                 (groups.SelectedItem as string ?? "Tümü",
                  list.SelectedIndex >= 0 && list.SelectedIndex < visible.Count ? visible[list.SelectedIndex] : null,
-                 list.Items.Count > 0 ? list.TopIndex : 0);
+                 list.Count > 0 ? list.TopIndex : 0);
             currentLibraryKind = nextKind;
         }
         RefreshGroups();
@@ -29,7 +29,7 @@ internal sealed partial class PlayerForm
             if (groups.Items.Contains(position.Group)) groups.SelectedItem = position.Group;
             int index = position.Selected == null ? -1 : visible.IndexOf(position.Selected);
             if (index >= 0) list.SelectedIndex = index;
-            if (list.Items.Count > 0) list.TopIndex = Math.Clamp(position.Top, 0, list.Items.Count - 1);
+            if (list.Count > 0) list.TopIndex = Math.Clamp(position.Top, 0, list.Count - 1);
         }
         UpdateLibrarySelection();
         if (cinemaGallery != null) cinemaGallery.ScrollOffset = cinemaScroll.GetValueOrDefault(nextKind);
@@ -248,4 +248,5 @@ internal sealed partial class PlayerForm
         public override Color MenuBorder => foreground;
     }
 }
+
 

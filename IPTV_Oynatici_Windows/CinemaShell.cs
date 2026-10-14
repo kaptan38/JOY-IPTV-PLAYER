@@ -174,7 +174,7 @@ internal sealed partial class PlayerForm
             RefreshCinemaEmptyState();
         };
         cinemaGallery.SelectionChanged += (_, _) =>
-        { if (cinemaGallery.SelectedIndex >= 0 && cinemaGallery.SelectedIndex < list.Items.Count) list.SelectedIndex = cinemaGallery.SelectedIndex; };
+        { if (cinemaGallery.SelectedIndex >= 0 && cinemaGallery.SelectedIndex < list.Count) list.SelectedIndex = cinemaGallery.SelectedIndex; };
         cinemaGallery.ItemActivated += async (_, _) => await PlaySelectedAsync();
         cinemaGallery.ImageReady += (_, _) => RefreshCinemaDetails();
         list.SelectedIndexChanged += (_, _) =>
@@ -365,4 +365,5 @@ internal sealed partial class PlayerForm
         }
     }
 }
+
 

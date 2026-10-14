@@ -22,8 +22,6 @@ internal sealed partial class PlayerForm
         cardDetailFont = new Font("Segoe UI", 8.5f);
         try { cardList = File.ReadAllText(Path.Combine(settingsDir, "liste_gorunumu.txt")) != "compact"; }
         catch { }
-        list.DrawMode = DrawMode.OwnerDrawFixed;
-        list.IntegralHeight = false;
         list.ItemHeight = (int)Math.Round((cardList ? 62 : 32) * DeviceDpi / 96d);
         list.DrawItem += DrawLibraryItem;
         list.MouseMove += (_, e) =>
@@ -43,9 +41,9 @@ internal sealed partial class PlayerForm
     private void ToggleListCards()
     {
         cardList = !cardList;
-        int topIndex = list.Items.Count > 0 ? list.TopIndex : 0;
+        int topIndex = list.Count > 0 ? list.TopIndex : 0;
         list.ItemHeight = (int)Math.Round((cardList ? 62 : 32) * DeviceDpi / 96d);
-        if (list.Items.Count > 0) list.TopIndex = Math.Min(topIndex, list.Items.Count - 1);
+        if (list.Count > 0) list.TopIndex = Math.Min(topIndex, list.Count - 1);
         list.Invalidate();
         try { Directory.CreateDirectory(settingsDir); File.WriteAllText(Path.Combine(settingsDir, "liste_gorunumu.txt"), cardList ? "cards" : "compact"); }
         catch { }
@@ -65,7 +63,7 @@ internal sealed partial class PlayerForm
         var item = visible[e.Index];
         bool selected = (e.State & DrawItemState.Selected) != 0;
         bool playing = playingChannel == item;
-        bool favorite = list.Items[e.Index]?.ToString()?.StartsWith("★ ", StringComparison.Ordinal) == true;
+        bool favorite = favorites.Contains(FavoriteKey(item));
         int scale(int value) => Math.Max(1, (int)Math.Round(value * DeviceDpi / 96d));
         Color ink = selected ? Color.FromArgb(14, 40, 46) : list.ForeColor;
         Color background = selected ? selectionColor : list.BackColor;
@@ -169,4 +167,5 @@ internal sealed partial class PlayerForm
         Close();
     }
 }
+
 

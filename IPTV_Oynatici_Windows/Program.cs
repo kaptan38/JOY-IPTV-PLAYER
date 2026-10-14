@@ -73,8 +73,8 @@ internal sealed partial class PlayerForm : Form
     private readonly ComboBox groups = new() { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly ComboBox picture = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 170 };
     private readonly CheckBox favoritesOnly = new() { Dock = DockStyle.Top, Text = "Yalnızca favoriler", Height = 28, ForeColor = Color.White };
-    private readonly ListBox list = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(24, 31, 42), ForeColor = Color.White,
-        BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 10) };
+    private readonly VirtualChannelList list = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(24, 31, 42), ForeColor = Color.White,
+        Font = new Font("Segoe UI", 10) };
     private readonly Label status = new() { Dock = DockStyle.Bottom, Height = 29, ForeColor = Color.Gainsboro, Text = "Kaynak ekleyerek başlayın." };
     private readonly VideoView video = new() { Dock = DockStyle.Fill, BackColor = Color.Black };
     private readonly LibVLC libvlc = new("--no-video-title-show", "--network-caching=900", "--avcodec-hw=any");
@@ -137,8 +137,7 @@ internal sealed partial class PlayerForm : Form
         filter.TextChanged += (_, _) => ApplyFilter();
         groups.SelectedIndexChanged += (_, _) => ApplyFilter();
         favoritesOnly.CheckedChanged += (_, _) => ApplyFilter();
-        list.DoubleClick += async (_, _) => await PlaySelectedAsync();
-        list.KeyDown += async (_, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; await PlaySelectedAsync(); } };
+        list.ItemActivated += async (_, _) => await PlaySelectedAsync();
         video.DoubleClick += (_, _) => ToggleFullscreen();
         var videoMenu = new ContextMenuStrip();
         videoMenu.Items.Add("Tam ekran / çık (F11)", null, (_, _) => ToggleFullscreen());
@@ -615,19 +614,7 @@ internal sealed partial class PlayerForm : Form
         if (kind == "Önerilen") candidate = RankRecommendations(candidate);
         visible = q.Length == 0 ? candidate.ToList() : candidate.Select(c => (Channel: c, Score: SmartSearchScore(c, q)))
             .Where(x => x.Score >= 0).OrderByDescending(x => x.Score).Select(x => x.Channel).ToList();
-        list.BeginUpdate();
-        try
-        {
-            list.Items.Clear();
-            list.Items.AddRange(visible.Select(c =>
-                $"{(favorites.Count > 0 && favorites.Contains(FavoriteKey(c)) ? "★ " : "")}{c.Name}{EpgLabel(c)}").ToArray());
-        }
-        finally { list.EndUpdate(); }
-        if (previousSelection != null)
-        {
-            int index = visible.IndexOf(previousSelection);
-            if (index >= 0) list.SelectedIndex = index;
-        }
+        list.SetItems(visible, previousSelection == null ? -1 : visible.IndexOf(previousSelection));
         UpdateVisualSummary();
         RefreshCinemaCatalog();
     }
@@ -870,4 +857,5 @@ internal sealed partial class PlayerForm : Form
         return base.ProcessCmdKey(ref msg, keyData);
     }
 }
+
 
