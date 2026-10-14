@@ -2,7 +2,7 @@ name: JOY IPTV - Tek EXE
 on:
   workflow_dispatch:
   push:
-    branches: [main, master, source-ui-fix, loading-performance-fix, catalog-category-fix]
+    branches: [main, master, source-ui-fix, loading-performance-fix, catalog-category-fix, stable-premium-implementation]
     paths:
       - 'IPTV_Oynatici_Windows/**'
       - 'Tests/**'
@@ -28,6 +28,13 @@ jobs:
             Where-Object { $_.FullName -match 'win-x64|x64' } | Select-Object -First 1
           dotnet run --project Tests/SourceRegression.csproj -c Release -- $native.DirectoryName
           if ($LASTEXITCODE -ne 0) { throw 'Source regression test failed.' }
+      - name: Premium regression
+        shell: pwsh
+        run: |
+          $cache = Join-Path $env:USERPROFILE '.nuget\packages'
+          $native = Get-ChildItem (Join-Path $cache 'videolan.libvlc.windows\3.0.21') -Recurse -Filter libvlc.dll | Where-Object { $_.FullName -match 'win-x64|x64' } | Select-Object -First 1
+          dotnet run --project Tests/PremiumRegression.csproj -c Release -- $native.DirectoryName
+          if ($LASTEXITCODE -ne 0) { throw 'Premium regression failed.' }
       - name: VLC motorunu EXE icine gom
         shell: pwsh
         run: ./IPTV_Oynatici_Windows/Derle.ps1
@@ -68,4 +75,5 @@ jobs:
           path: JOY_IPTV_*Onizleme.png
           if-no-files-found: error
           retention-days: 14
+
 

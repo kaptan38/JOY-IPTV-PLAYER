@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier><PlatformTarget>x64</PlatformTarget><SelfContained>true</SelfContained>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems><AssemblyName>JOY_IPTV_Premium_Tests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup><Compile Include="PremiumProgram.cs" /><ProjectReference Include="../IPTV_Oynatici_Windows/IPTVPlayer.csproj" /></ItemGroup>
+</Project>

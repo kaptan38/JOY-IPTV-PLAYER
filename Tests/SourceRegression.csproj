@@ -10,6 +10,8 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="PremiumProgram.cs" />
     <ProjectReference Include="../IPTV_Oynatici_Windows/IPTVPlayer.csproj" />
   </ItemGroup>
 </Project>
+
