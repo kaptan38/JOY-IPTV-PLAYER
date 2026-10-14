@@ -19,6 +19,10 @@ internal static class PremiumProgram
             Check(control is ScrollableControl && control is not ListBox,
                 "Large channel catalog still binds every row into a native ListBox.");
             Console.WriteLine("PASS: live list uses visible-only scrollable rendering.");
+            // Exercise the control in isolation: the form's initial background
+            // catalog query is allowed to replace its own binding during message pumping.
+            using var virtualControl = (Control)Activator.CreateInstance(control.GetType(), true)!;
+            control = virtualControl;
             var channelType = assembly.GetType("JoyIptv.Channel")!;
             var entries = Array.CreateInstance(channelType, 100000);
             var ctor = channelType.GetConstructors()[0];
