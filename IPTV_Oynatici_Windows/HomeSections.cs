@@ -74,7 +74,7 @@ internal sealed partial class PlayerForm
         {
             if (entry.SourceKey != sourceKey) return null;
             if (!lookup.TryGetValue((entry.Item.Kind, entry.Item.Name, entry.Item.Command ?? entry.Item.Url), out var current))
-            { if (!allowEpisode || entry.Item.Kind != "Bölüm") return null; current = entry.Item; }
+            { if (!allowEpisode || !(entry.Item.Kind == "Bölüm" || (entry.Item.Kind == "Dizi" && String.IsNullOrEmpty(entry.Item.Command)))) return null; current = entry.Item; }
             return new HomeItem(current, sourceKey, entry.Watched, positions.GetValueOrDefault(entry.Key));
         }
         var last = recent.Concat(continues).Where(x => x.SourceKey == sourceKey).OrderByDescending(x => x.Watched).DistinctBy(x => x.Key)

@@ -18,7 +18,7 @@ internal sealed partial class PlayerForm
             if (!File.Exists(ContinueFile)) return;
             byte[] plain = ProtectedData.Unprotect(File.ReadAllBytes(ContinueFile), null, DataProtectionScope.CurrentUser);
             foreach (var item in JsonSerializer.Deserialize<List<ContinueEntry>>(plain) ?? new())
-                if (item.Key.Length > 0 && item.Item.Kind is ("Film" or "Bölüm")) continueItems[item.Key] = item;
+                if (item.Key.Length > 0 && IsResumeContent(item.Item)) continueItems[item.Key] = item;
         }
         catch { status.Text = "İzlemeye devam listesi okunamadı."; }
     }

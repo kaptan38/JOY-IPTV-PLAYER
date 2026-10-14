@@ -224,16 +224,19 @@ internal sealed partial class PlayerForm
         catch { status.Text = "İzleme konumları okunamadı."; }
     }
 
+    private static bool IsResumeContent(Channel item) => item.Kind is "Film" or "Bölüm" ||
+        (item.Kind == "Dizi" && String.IsNullOrEmpty(item.Command));
+
     private void PrepareResume(Channel item)
     {
         playingKey = FavoriteKey(item); playingSourceKey = CacheKey(); pendingResume = 0;
-        if (item.Kind is "Film" or "Bölüm") resumePositions.TryGetValue(playingKey, out pendingResume);
+        if (IsResumeContent(item)) resumePositions.TryGetValue(playingKey, out pendingResume);
         if (pendingResume > 30000) status.Text = "Kaldığınız yer hazırlanıyor...";
     }
 
     private void SavePlaybackPosition()
     {
-        if (playingChannel == null || playingChannel.Kind is not ("Film" or "Bölüm") || playingKey.Length == 0) return;
+        if (playingChannel == null || !IsResumeContent(playingChannel) || playingKey.Length == 0) return;
         long elapsed = player.Time, length = player.Length;
         if (elapsed < 30000 && pendingResume > 0) return;
         if (length > 0 && elapsed > length - 30000)
@@ -263,7 +266,7 @@ internal sealed partial class PlayerForm
             TimeSpan.FromMilliseconds(length).ToString(@"hh\:mm\:ss") : "CANLI";
         seek.Enabled = player.IsSeekable && length > 0;
         if (!draggingSeek) seek.Value = length > 0 ? (int)Math.Clamp(elapsed * 1000.0 / length, 0, 1000) : 0;
-        if ((playingChannel?.Kind is "Film" or "Bölüm") && (DateTime.UtcNow - lastResumeSave).TotalSeconds >= 10)
+        if ((playingChannel != null && IsResumeContent(playingChannel)) && (DateTime.UtcNow - lastResumeSave).TotalSeconds >= 10)
         { SavePlaybackPosition(); lastResumeSave = DateTime.UtcNow; }
     }
 
