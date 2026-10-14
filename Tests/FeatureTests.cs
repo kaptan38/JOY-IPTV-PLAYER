@@ -85,7 +85,7 @@ internal static class FeatureTests
         var menu = (ContextMenuStrip)f.GetType().GetField("cinemaToolsMenu", P)!.GetValue(f)!;
         IEnumerable<ToolStripItem> Items(ToolStripItemCollection rows)
         { foreach (ToolStripItem item in rows) { yield return item; if (item is ToolStripMenuItem m) foreach (var x in Items(m.DropDownItems)) yield return x; } }
-        Check(Items(menu.Items).Any(i => (i.Text ?? "").Contains("yedek", StringComparison.OrdinalIgnoreCase)), "Settings backup action unavailable.");
+        Check(Items(menu.Items).Any(i => i.Text == "Ayar yedeğini dışa aktar"), "Settings backup action unavailable.");
         var type = a.GetType("JoyIptv.SettingsBackup")!;
         var flags = BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
         string dir = Path.Combine(Path.GetTempPath(), "joy-backup-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(dir);
