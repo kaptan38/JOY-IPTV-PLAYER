@@ -42,6 +42,7 @@ internal sealed partial class PlayerForm
         Move(picture, appearancePanel);
         Move(pictureProfile, appearancePanel);
         Move(themeBox, appearancePanel);
+        SetupCinemaPreferences(appearancePanel);
         MoveButton("Görüntü bilgisi", appearancePanel);
         MoveButton("AI araçlarını seç", appearancePanel);
         Move(epgAddress, connectionPanel);
@@ -185,3 +186,4 @@ internal sealed partial class PlayerForm
         }
     }
 }
+

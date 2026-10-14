@@ -27,9 +27,20 @@ internal sealed class PosterGallery : ScrollableControl
     internal Color Muted { get; set; } = Color.FromArgb(170, 190, 208);
     internal int SelectedIndex { get; private set; } = -1;
     internal int ScrollOffset { get => -AutoScrollPosition.Y; set => AutoScrollPosition = new Point(0, Math.Max(0, value)); }
-    private int CardWidth => Math.Clamp((ClientSize.Width - 74) / 4, (int)(135 * DeviceDpi / 96d), (int)(210 * DeviceDpi / 96d));
-    private int CardHeight => (int)(CardWidth * 1.38) + 55;
-    private int Columns => Math.Clamp((ClientSize.Width - 2) / (CardWidth + 18), 1, 4);
+    private PosterSize posterSize = JoyIptv.PosterSize.Medium;
+    internal PosterSize PosterSize
+    { get => posterSize; set { posterSize = value; UpdateGrid(); EnsureSelectedVisible(); Invalidate(); } }
+    private int CardWidth => (int)((posterSize switch { JoyIptv.PosterSize.Small => 125, JoyIptv.PosterSize.Large => 205, _ => 165 }) * DeviceDpi / 96d);
+    private int CardHeight => (int)(CardWidth * 1.38) + (int)(55 * DeviceDpi / 96d);
+    private int Columns => Math.Max(1, (ClientSize.Width - 2) / (CardWidth + 18));
+    private void UpdateGrid() => AutoScrollMinSize = new Size(0, ((items.Count + Columns - 1) / Columns) * CardHeight + 16);
+    private void EnsureSelectedVisible()
+    {
+        if (SelectedIndex < 0 || SelectedIndex >= items.Count) return;
+        int y = SelectedIndex / Columns * CardHeight, offset = -AutoScrollPosition.Y;
+        if (y < offset) ScrollOffset = y;
+        else if (y + CardHeight > offset + ClientSize.Height) ScrollOffset = Math.Max(0, y + CardHeight - ClientSize.Height);
+    }
 
     internal PosterGallery()
     {
@@ -40,14 +51,14 @@ internal sealed class PosterGallery : ScrollableControl
     internal void SetItems(IReadOnlyList<Channel> value, int selected)
     {
         items = value; SelectedIndex = selected >= 0 && selected < items.Count ? selected : -1;
-        AutoScrollMinSize = new Size(0, ((items.Count + Columns - 1) / Columns) * CardHeight + 16);
+        UpdateGrid();
         Invalidate();
     }
 
     internal void SelectItem(int index)
     {
         if (index < 0 || index >= items.Count || index == SelectedIndex) return;
-        SelectedIndex = index; Invalidate(); SelectionChanged?.Invoke(this, EventArgs.Empty);
+        SelectedIndex = index; EnsureSelectedVisible(); Invalidate(); SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
     internal Image? GetPoster(string url)
@@ -113,7 +124,7 @@ internal sealed class PosterGallery : ScrollableControl
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
-        AutoScrollMinSize = new Size(0, ((items.Count + Columns - 1) / Columns) * CardHeight + 16);
+        UpdateGrid();
     }
 
     protected override void OnPaint(PaintEventArgs e)

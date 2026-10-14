@@ -60,8 +60,10 @@ internal sealed partial class PlayerForm
         rail.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
         rail.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         rail.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
-        rail.Controls.Add(new Label { Dock = DockStyle.Fill, Text = "▶ JOY\nIPTV PLAYER", TextAlign = ContentAlignment.MiddleLeft,
-            Font = new Font("Segoe UI", 14, FontStyle.Bold) }, 0, 0);
+        cinemaCollapse = Button("☰  JOY IPTV", (_, _) => UpdateCinemaPreferences(cinemaPreferences with { CompactRail = !cinemaPreferences.CompactRail }));
+        cinemaCollapse.AccessibleName = "Menüyü daralt"; cinemaCollapse.Dock = DockStyle.Fill;
+        cinemaCollapse.AutoSize = false; cinemaCollapse.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+        rail.Controls.Add(cinemaCollapse, 0, 0);
         var railItems = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
             WrapContents = false, AutoScroll = true };
         foreach (var item in new[] { ("Tümü", "⌂  Ana Sayfa"), ("Canlı TV", "▣  Canlı TV"), ("Film", "▤  Filmler"),
@@ -102,8 +104,8 @@ internal sealed partial class PlayerForm
         savedSourceBox.Dock = DockStyle.Fill; savedSourceBox.Margin = new Padding(6, 10, 2, 14); header.Controls.Add(savedSourceBox, 2, 0);
         content.Controls.Add(header, 0, 0);
         var filters = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
-        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 270));
-        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
+        filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
         filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         filters.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         groups.Dock = DockStyle.Fill; filters.Controls.Add(groups, 0, 0);
@@ -181,7 +183,7 @@ internal sealed partial class PlayerForm
         { cinemaGallery.SelectItem(list.SelectedIndex); RefreshCinemaDetails(); };
         kinds.SelectedIndexChanged += (_, _) => { cinemaPlayingView = false; UpdateCinemaMode(); };
         FormClosed += (_, _) => { cinemaPoster.Image?.Dispose(); cinemaToolsMenu.Dispose(); top.Dispose(); };
-        ResumeLayout(); ApplyTheme();
+        ResumeLayout(); ApplyTheme(); ApplyCinemaPreferences();
         if (channels.Count == 0) kinds.SelectedItem = "Tümü";
         RefreshCinemaCounts();
         RefreshCinemaCatalog();
@@ -192,6 +194,7 @@ internal sealed partial class PlayerForm
         var button = Button(text, click); button.Width = 145; button.Height = 48; button.AutoSize = false;
         button.Font = new Font("Segoe UI", 9.5f);
         button.TextAlign = ContentAlignment.MiddleLeft; button.Margin = new Padding(0, 0, 0, 6);
+        button.Tag = text; button.AccessibleName = text.Trim();
         button.FlatAppearance.BorderSize = 0; cinemaAllRail.Add(button); return button;
     }
     private static Button TransportButton(string text, EventHandler click)
